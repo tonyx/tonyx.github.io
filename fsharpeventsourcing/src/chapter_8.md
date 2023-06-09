@@ -1,12 +1,16 @@
-# Refactoring stragegy
+# Refactoring strategy
 
-Here I am showing a strategy for refactoring aggregates as moving the models ownership between aggregates, introducing new aggregates or upgrading old ones.
+Here I am showing a strategy for refactoring aggregates in terms of:  
+- moving the models ownership between aggregates, 
+- introducing new aggregates 
+- upgrading old aggregates.
+- dropping aggregates.
 
-It looks to me that it could be convenient at an early stage of development and prototyping to keep the models in few aggregates, or in a single aggregate.
+Looks more convenient having few aggregate, in a development and prototyping stage.
 
 This will simplify testing, prototyping, building the application service layer.
 
-However, at a later stage, a proper refactoring is needed by moving models to different aggregates or creating new aggregates.
+However, at a later stage, a proper refactoring is probably needed by moving models to different aggregates or creating new aggregates for performance reasons.
 
 Refactoring aggregates in that sense means leaving the application service layer behavior unchanged.
 

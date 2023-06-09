@@ -16,9 +16,9 @@ Here is an example of an entry for the services involving a single aggregate.
         }
 ```
 
-The servie layer send commands to the repository so that it can produce and store related events.
+The service layer send commands to the repository so that it can produce and store related events.
 
-The following example shows a service using two aggregates and an explicit lock.
+The following example shows a service function that uses two aggregates and an explicit lock.
 
 ```FSharp
     member this.addTodo todo =
@@ -41,7 +41,7 @@ The following example shows a service using two aggregates and an explicit lock.
 ```
 
 According to a business rule, the todo can be added only if it contains valid tag references.
-The block of code protected by the lock ensures that this rule is respected: I want to make impossible that an event related to the tags is stored between the moment the code gets the tagId list and the moment the code adds the todo.
+The fact that the block seen is protected by the lock ensures that this rule is respected: according to the mentioned business rule, I want to make impossible that an event related to the tags is stored between the moment the code gets the tagId list and the moment the code adds the todo.
 That would have the effect of making the todo invalid.
 
 Another example is the following, about sending commands to more aggregates.

@@ -1,6 +1,6 @@
 # Events
 
-Events are associated to members of the aggregate that returns a new version of the aggregate (or error).  They are defined as Discriminated Union (Du) type. 
+Events are associated to the members of the aggregate that returns a new version of the aggregate (or error). They are defined as Discriminated Union (Du) type. 
 
 The abstract definition of an Event is: 
 

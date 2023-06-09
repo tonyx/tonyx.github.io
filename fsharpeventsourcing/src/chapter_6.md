@@ -1,8 +1,8 @@
 # Repository
 The repository has the responsibility of:
 - getting the state of an aggregate
-- trying to run commands passed and and eventually storing the related events.
-- making periodic snapshots
+- trying to run commands passed, and eventually storing the related events.
+- making periodic snapshots, according to the SnapshotsInterval parameter of the aggregate.
 
 Here an example of the private member that retrieve the last snapshot:
 

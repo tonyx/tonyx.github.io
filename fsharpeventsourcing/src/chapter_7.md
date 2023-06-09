@@ -18,6 +18,6 @@ Here the abstract definition of members required for a storage:
     abstract member GetEventsAfterId: version -> int -> Name -> List<int * string >
 ```
 
-The ability to do reseti must be enabled only for development and test storages (it is possible using Conf.fs file)
+Reset must be used only for development and test, and cannot be used in production. See Conf.fs.
 
 An example of a storage implementation in postgres: [DbStorage.fs](https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Micro_ES_FSharp_Lib/DbStorage.fs)

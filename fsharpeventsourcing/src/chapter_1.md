@@ -1,6 +1,6 @@
 # Models
 
-Models (unofficial term) are collection of basic entities.
+Models (unofficial term) are collections of basic entities like records.
 A model can contain references to elements of other models only indirectly, for example using external ids.
 
 A Simple model for todo items:
