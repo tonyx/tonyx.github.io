@@ -145,13 +145,13 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="aggregates"><a class="header" href="#aggregates">Aggregates</a></h1>
-<p>An aggregate is a class that handles one or more models, is associated to commands and events. The state of an aggregate can be rebuild by using snapshots and by processing stored events.</p>
+<p>An aggregate is a class that handles one or more models. The state of an aggregate can be rebuild by using snapshots and by processing stored events.</p>
 <p>An aggregate must define the following static members:</p>
 <ul>
 <li><strong>Zero</strong>: an instance of the aggregate in its intitial state. </li>
 <li><strong>StorageName</strong> and  <strong>Version</strong>: this combination uniquely identifies the aggreagate  to make sure the storage will store snapshots and events in dedicated tables.</li>
-<li><strong>LockObject</strong>: the repository use them to lock the aggregate while storing related events. Appliation layer may use them explicitly to ensure inter-aggregate integrity (invariant conditions involving models in different aggregates).</li>
-<li><strong>SnapshotsInterval</strong>: number of events between snapshots.</li>
+<li><strong>LockObject</strong>: the repository uses them to lock the aggregate while storing related events ensuring consistency. an application layer may use them explicitly to ensure inter-aggregate integrity (invariant conditions involving models in different aggregates).</li>
+<li><strong>SnapshotsInterval</strong>: the number of the events that can be stored after a snapshot before creating a new snapshot (i.e. the numer of events between snapshots)</li>
 <li><strong>Zero</strong>: the aggregate's initial state, when no events happened yet.</li>
 </ul>
 <p>Example:</p>
@@ -174,7 +174,7 @@
         static member SnapshotsInterval =
             15
 </code></pre>
-<p>Some member of the aggregate are meant to &quot;change&quot; its state. They are function returning a new instance of the aggregate with the new state in a Result type. Those members will be assicated to events.</p>
+<p>Some member of the aggregate has the role of &quot;changing&quot; its state. They are functions returning a new instance of the aggregate with the new state in a Result type. Those members will be assicated to specific events (see next section).</p>
 <p>Example:</p>
 <pre><code class="language-FSharp">    member this.AddTodo (t: Todo) =
         let checkCategoryExists (c: Guid ) =
