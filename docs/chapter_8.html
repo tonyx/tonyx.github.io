@@ -144,11 +144,17 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="refactoring-stragegy"><a class="header" href="#refactoring-stragegy">Refactoring stragegy</a></h1>
-<p>Here I am showing a strategy for refactoring aggregates as moving the models ownership between aggregates, introducing new aggregates or upgrading old ones.</p>
-<p>It looks to me that it could be convenient at an early stage of development and prototyping to keep the models in few aggregates, or in a single aggregate.</p>
+                        <h1 id="refactoring-strategy"><a class="header" href="#refactoring-strategy">Refactoring strategy</a></h1>
+<p>Here I am showing a strategy for refactoring aggregates in terms of:</p>
+<ul>
+<li>moving the models ownership between aggregates, </li>
+<li>introducing new aggregates </li>
+<li>upgrading old aggregates.</li>
+<li>dropping aggregates.</li>
+</ul>
+<p>Looks more convenient having few aggregate, in a development and prototyping stage.</p>
 <p>This will simplify testing, prototyping, building the application service layer.</p>
-<p>However, at a later stage, a proper refactoring is needed by moving models to different aggregates or creating new aggregates.</p>
+<p>However, at a later stage, a proper refactoring is probably needed by moving models to different aggregates or creating new aggregates for performance reasons.</p>
 <p>Refactoring aggregates in that sense means leaving the application service layer behavior unchanged.</p>
 <p>The steps that may be followed are:</p>
 <ul>

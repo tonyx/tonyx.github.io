@@ -159,7 +159,7 @@
     abstract member MultiAddEvents:  List&lt;List&lt;Json&gt; * version * Name&gt;  -&gt; Result&lt;unit, string&gt;
     abstract member GetEventsAfterId: version -&gt; int -&gt; Name -&gt; List&lt;int * string &gt;
 </code></pre>
-<p>The ability to do reseti must be enabled only for development and test storages (it is possible using Conf.fs file)</p>
+<p>Reset must be used only for development and test, and cannot be used in production. See Conf.fs.</p>
 <p>An example of a storage implementation in postgres: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Micro_ES_FSharp_Lib/DbStorage.fs">DbStorage.fs</a></p>
 
                     </main>

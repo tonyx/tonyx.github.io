@@ -148,8 +148,8 @@
 <p>The repository has the responsibility of:</p>
 <ul>
 <li>getting the state of an aggregate</li>
-<li>trying to run commands passed and and eventually storing the related events.</li>
-<li>making periodic snapshots</li>
+<li>trying to run commands passed, and eventually storing the related events.</li>
+<li>making periodic snapshots, according to the SnapshotsInterval parameter of the aggregate.</li>
 </ul>
 <p>Here an example of the private member that retrieve the last snapshot:</p>
 <pre><code class="language-FSharp">    let inline private getLastSnapshot&lt;'A 
