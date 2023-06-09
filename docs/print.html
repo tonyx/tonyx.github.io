@@ -1,0 +1,513 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title></title>
+        <meta name="robots" content="noindex" />
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = null;
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_1.html"><strong aria-hidden="true">2.</strong> Models</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">3.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">4.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">5.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">6.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">7.</strong> Repository</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">8.</strong> Storage</a></li><li class="chapter-item expanded "><a href="chapter_8.html"><strong aria-hidden="true">9.</strong> Refactoring</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title"></h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
+<img src="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/ico/sharpino.png" alt="drawing" width="50"/>
+<p><a href="https://github.com/tonyx/Micro_ES_FSharp_Lib">Sharpino</a> is a simple F# event sourcing library.
+This document gives a quick overview of the library, the sample application and some hints about a refactoring and migration strategy.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="models"><a class="header" href="#models">Models</a></h1>
+<p>Models (unofficial term) are collection of basic entities.
+A model can contain references to elements of other models only indirectly, for example using external ids.</p>
+<p>A Simple model for todo items:</p>
+<pre><code class="language-FSharp">    type Todo =
+        {
+            Id: Guid
+            CategoryIds : List&lt;Guid&gt;
+            TagIds: List&lt;Guid&gt;
+            Description: string
+        }
+    type Todos =
+        {
+            todos: List&lt;Todo&gt;
+        }
+        with
+            static member Zero =
+                {
+                    todos = []
+                }
+</code></pre>
+<p>Source: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/models/TodosModel.fs">TodosModel.fs</a></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="aggregates"><a class="header" href="#aggregates">Aggregates</a></h1>
+<p>An aggregate is a class that handles one or more models, is associated to commands and events. The state of an aggregate can be rebuild by using snapshots and by processing stored events.</p>
+<p>An aggregate must define the following static members:</p>
+<ul>
+<li><strong>Zero</strong>: an instance of the aggregate in its intitial state. </li>
+<li><strong>StorageName</strong> and  <strong>Version</strong>: this combination uniquely identifies the aggreagate  to make sure the storage will store snapshots and events in dedicated tables.</li>
+<li><strong>LockObject</strong>: the repository use them to lock the aggregate while storing related events. Appliation layer may use them explicitly to ensure inter-aggregate integrity (invariant conditions involving models in different aggregates).</li>
+<li><strong>SnapshotsInterval</strong>: number of events between snapshots.</li>
+<li><strong>Zero</strong>: the aggregate's initial state, when no events happened yet.</li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-FSharp">    type TodosAggregate =
+        {
+            todos: Todos
+            categories: Categories
+        }
+        static member Zero =
+            {
+                todos = Todos.Zero
+                categories = Categories.Zero
+            }
+        static member StorageName =
+            &quot;_todo&quot;
+        static member Version =
+            &quot;_01&quot;
+        static member LockObj =
+            LockObject.Instance.LokObject
+        static member SnapshotsInterval =
+            15
+</code></pre>
+<p>Some member of the aggregate are meant to &quot;change&quot; its state. They are function returning a new instance of the aggregate with the new state in a Result type. Those members will be assicated to events.</p>
+<p>Example:</p>
+<pre><code class="language-FSharp">    member this.AddTodo (t: Todo) =
+        let checkCategoryExists (c: Guid ) =
+            this.categories.GetCategories() 
+            |&gt; List.exists (fun x -&gt; x.Id = c) 
+            |&gt; boolToResult (sprintf &quot;A category with id '%A' does not exist&quot; c)
+
+        ResultCE.result
+            {
+                let! categoriesMustExist = t.CategoryIds |&gt; catchErrors checkCategoryExists // FOCUS HERE
+                let! todos = this.todos.AddTodo t
+                return 
+                    {
+                        this with
+                            todos = todos
+                    }
+            }
+</code></pre>
+<p>Source: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Micro_ES_FSharp_Lib.Sample/aggregates/Todos/Aggregate.fs">TodosAggregate.fs</a></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="events"><a class="header" href="#events">Events</a></h1>
+<p>Events are associated to members of the aggregate that returns a new version of the aggregate (or error).  They are defined as Discriminated Union (Du) type. </p>
+<p>The abstract definition of an Event is: </p>
+<pre><code class="language-FSharp">    type Event&lt;'A&gt; =
+        abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
+</code></pre>
+<p>Example of implementation relate to the TodoAggregate: add and remove:</p>
+<pre><code class="language-Fsharp">    type TodoEvent =
+        | TodoAdded of Todo
+        | TodoRemoved of Guid
+            interface Event&lt;TodosAggregate&gt; with
+                member this.Process (x: TodosAggregate ) =
+                    match this with
+                    | TodoAdded (t: Todo) -&gt; 
+                        x.AddTodo t
+                    | TodoRemoved (g: Guid) -&gt; 
+                        x.RemoveTodo g
+
+</code></pre>
+<p>This shows that processing an event means calling its related aggregate member.</p>
+<p>It is possible to cache events by enabling them explicitly at a library level: <a href="Micro_ES_FSharp_Lib/Micro_ES_FSharp_Lib.fsproj">project file</a>:</p>
+<pre><code class="language-Fsharp">    type TodoEvent =
+        | TodoAdded of Todo
+        | TodoRemoved of Guid
+            interface Event&lt;TodosAggregate&gt; with
+                member this.Process (x: TodosAggregate ) =
+                    match this with
+                    | TodoAdded (t: Todo) -&gt; 
+                        EventCache&lt;TodosAggregate&gt;.Instance.Memoize (fun () -&gt; x.AddTodo t) (x, [TodoAdded t]) 
+                    | TodoRemoved (g: Guid) -&gt; 
+                        EventCache&lt;TodosAggregate&gt;.Instance.Memoize (fun () -&gt; x.RemoveTodo g) (x, [TodoRemoved t]) 
+</code></pre>
+<p>Event Caching is disabled by default. See &quot;EVENTS_CACHING_ENABLED&quot; in the project file: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Sharpino.Lib.fsproj">project file</a>
+To enabled the caching of events, the library must be compiled with the following compilation symbol: <code>EVENTS_CACHING_ENABLED</code>.</p>
+<p>Source:  <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Micro_ES_FSharp_Lib.Sample/aggregates/Todos/Events.fs">Events.fs</a></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
+<p>Commands are based on DU types and, when executed, will produce lists of events or error.
+The abstract definition of a command is:</p>
+<pre><code class="language-FSharp">    type Command&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
+        abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
+</code></pre>
+<p>Example:</p>
+<pre><code class="language-FSharp">    type TodoCommand =
+        | AddTodo of Todo
+        | RemoveTodo of Guid
+
+        interface Command&lt;TodosAggregate, TodoEvent&gt; with
+            member this.Execute (x: TodosAggregate) =
+                match this with
+                | AddTodo t -&gt; 
+                    match x.AddTodo t with
+                    | Ok _ -&gt; [TodoAdded] |&gt; Ok
+                    | Error x -&gt; x |&gt; Error
+                | RemoveTodo g -&gt;
+                    match
+                        x.RemoveTodo g with
+                        | Ok _ -&gt; [TodoEvent.TodoRemoved g] |&gt; Ok
+                        | Error x -&gt; x |&gt; Error
+</code></pre>
+<p>Commands return events in a list, so they can return multiple events, as follows:</p>
+<pre><code class="language-FSharp">    type TodoCommand =
+        [...]
+        | Add2Todos of Todo * Todo
+        interface Command&lt;TodosAggregate, TodoEvent&gt; with
+            member this.Execute (x: TodosAggregate) =
+            [...]
+            match this with
+            | Add2Todos (t1, t2) -&gt; 
+                let evolved =
+                    fun () -&gt;
+                    [TodoEvent.TodoAdded t1; TodoEvent.TodoAdded t2]
+                    |&gt; evolve x
+                match evolved() with
+                    | Ok _ -&gt; [TodoEvent.TodoAdded t1; TodoEvent.TodoAdded t2] |&gt; Ok
+                    | Error x -&gt; x |&gt; Error
+
+</code></pre>
+<p>Any command must ensure that it returns some events only if those events, when applied to the current aggregate state, will return an Ok result (and no error). 
+Commands can use event caching if it is enabled.</p>
+<p>Sources: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/aggregates/Todos/Commands.fs">Commands.fs</a>)</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
+<p>An application service layer provides services by bulding and sending commands related to one ore more aggregates. </p>
+<p>Here is an example of an entry for the services involving a single aggregate.</p>
+<pre><code class="language-FSharp">    member this.addTag tag =
+        ResultCE.result {
+            let! _ =
+                tag
+                |&gt; AddTag
+                |&gt; (runCommand&lt;TagsAggregate, TagEvent&gt; storage)
+            return ()
+        }
+</code></pre>
+<p>The servie layer send commands to the repository so that it can produce and store related events.</p>
+<p>The following example shows a service using two aggregates and an explicit lock.</p>
+<pre><code class="language-FSharp">    member this.addTodo todo =
+        lock TagsAggregate.LockObj &lt;| fun () -&gt;
+            ResultCE.result {
+                let! (_, tagState) = getState&lt;TagsAggregate, TagEvent&gt;(storage)
+                let tagIds = tagState.GetTags() |&gt;&gt; (fun x -&gt; x.Id)
+
+                let! tagIdIsValid =    
+                    (todo.TagIds.IsEmpty ||
+                    todo.TagIds |&gt; List.forall (fun x -&gt; (tagIds |&gt; List.contains x)))
+                    |&gt; boolToResult &quot;A tag reference contained is in the todo is related to a tag that does not exist&quot;
+
+                let! _ =
+                    todo
+                    |&gt; TodoCommand.AddTodo
+                    |&gt; (runCommand&lt;TodosAggregate, TodoEvent&gt; storage)
+            return ()
+        }
+</code></pre>
+<p>According to a business rule, the todo can be added only if it contains valid tag references.
+The block of code protected by the lock ensures that this rule is respected: I want to make impossible that an event related to the tags is stored between the moment the code gets the tagId list and the moment the code adds the todo.
+That would have the effect of making the todo invalid.</p>
+<p>Another example is the following, about sending commands to more aggregates.
+This code removes the tag with any reference to it. It build two commands and make the repository process them at the same tim.
+This code remove a tag and any reference to it.</p>
+<pre><code class="language-FSharp">    member this.removeTag id =
+        ResultCE.result {
+            let removeTag = TagCommand.RemoveTag id
+            let removeTagRef = TodoCommand.RemoveTagRef id
+            let! _ = runTwoCommands&lt;TagsAggregate, TodosAggregate, TagEvent, TodoEvent&gt; storage removeTag removeTagRef
+            return ()
+        }
+</code></pre>
+<p>Source: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/App.fs">App.fs</a></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="repository"><a class="header" href="#repository">Repository</a></h1>
+<p>The repository has the responsibility of:</p>
+<ul>
+<li>getting the state of an aggregate</li>
+<li>trying to run commands passed and and eventually storing the related events.</li>
+<li>making periodic snapshots</li>
+</ul>
+<p>Here an example of the private member that retrieve the last snapshot:</p>
+<pre><code class="language-FSharp">    let inline private getLastSnapshot&lt;'A 
+        when 'A: (static member Zero: 'A) 
+        and 'A: (static member StorageName: string)
+        and 'A: (static member Version: string)&gt;
+        (storage: IStorage) = 
+
+        ResultCE.result {
+            let! result =
+                match storage.TryGetLastSnapshot 'A.Version 'A.StorageName  with
+                | Some (snapId, eventId, json) -&gt;
+                    let state = SnapCache&lt;'A&gt;.Instance.Memoize (fun () -&gt; json |&gt; deserialize&lt;'A&gt;) snapId
+                    match state with
+                    | Error e -&gt; Error e
+                    | _ -&gt; (eventId, state |&gt; Result.get) |&gt; Ok
+                | None -&gt; (0, 'A.Zero) |&gt; Ok
+            return result
+        }
+</code></pre>
+<p>This function use the storage to retrieve a triple of the snapshotId, the related eventId and the snapshot itself, serialized as json.</p>
+<p>To get the current state of an aggregate we need to get the last snapshot and the events that are after the snapshot:</p>
+<pre><code class="language-Fsharp">    let inline getState&lt;'A, 'E
+        when 'A: (static member Zero: 'A)
+        and 'A: (static member StorageName: string)
+        and 'A: (static member Version: string)
+        and 'A: (static member LockObj: obj)
+        and 'E :&gt; Event&lt;'A&gt;&gt;(storage: IStorage) = 
+
+        let snapIdStateAndEvents()  =
+            lock 'A.LockObj ( fun _ -&gt;
+                ResultCE.result {
+                    let! (id, state) = getLastSnapshot&lt;'A&gt; storage
+                    let events = storage.GetEventsAfterId 'A.Version id 'A.StorageName
+                    let result =
+                        (id, state, events)
+                    return result
+                }
+            )
+
+        ResultCE.result {
+            let! (lastSnapshotId, state, events) = snapIdStateAndEvents()
+            let lastEventId =
+                match events.Length with
+                | x when x &gt; 0 -&gt; events |&gt; List.last |&gt; fst
+                | _ -&gt; lastSnapshotId 
+            let! events' =
+                events |&gt;&gt; snd |&gt; catchErrors deserialize&lt;'E&gt;
+            let! result =
+                events' |&gt; evolve&lt;'A, 'E&gt; state
+
+            return (lastEventId, result)
+        }
+</code></pre>
+<p>Note that here the evolve function is used, which is part of the core library and is defined as follows:</p>
+<pre><code class="language-Fsharp">    let inline evolve&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; (h: 'A) (events: List&lt;'E&gt;) =
+        events
+        |&gt; List.fold
+            (fun (acc: Result&lt;'A, string&gt;) (e: 'E) -&gt;
+                match acc with
+                    | Error err -&gt; Error err 
+                    | Ok h -&gt; h |&gt; e.Process
+            ) (h |&gt; Ok)
+</code></pre>
+<p>Code in <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Repository.fs">Repository.fs</a> and
+<a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Core.fs">Core.fs</a></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="storage"><a class="header" href="#storage">Storage</a></h1>
+<p>A storage stores and retrieves events and snapshots about any aggregate.</p>
+<p>Storage must ensure transactionality particularly in special cases like when adding events related to multiple aggregates.</p>
+<p>Here the abstract definition of members required for a storage:</p>
+<pre><code class="language-FSharp">    abstract member Reset: version -&gt; Name -&gt; unit
+    abstract member TryGetLastSnapshot: version -&gt; Name -&gt; Option&lt;int * int * Json&gt;
+    abstract member TryGetLastEventId: version -&gt; Name -&gt; Option&lt;int&gt;
+    abstract member TryGetLastSnapshotEventId: version -&gt; Name -&gt; Option&lt;int&gt;
+    abstract member TryGetLastSnapshotId: version -&gt; Name -&gt; Option&lt;int&gt;
+    abstract member TryGetEvent: version -&gt; int -&gt; Name -&gt; Option&lt;StorageEvent&gt;
+    abstract member SetSnapshot: version -&gt; int * Json -&gt; Name -&gt; Result&lt;unit, string&gt;
+    abstract member AddEvents: version -&gt; List&lt;Json&gt; -&gt; Name -&gt; Result&lt;unit, string&gt;
+    abstract member MultiAddEvents:  List&lt;List&lt;Json&gt; * version * Name&gt;  -&gt; Result&lt;unit, string&gt;
+    abstract member GetEventsAfterId: version -&gt; int -&gt; Name -&gt; List&lt;int * string &gt;
+</code></pre>
+<p>The ability to do reseti must be enabled only for development and test storages (it is possible using Conf.fs file)</p>
+<p>An example of a storage implementation in postgres: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Micro_ES_FSharp_Lib/DbStorage.fs">DbStorage.fs</a></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="refactoring-stragegy"><a class="header" href="#refactoring-stragegy">Refactoring stragegy</a></h1>
+<p>Here I am showing a strategy for refactoring aggregates as moving the models ownership between aggregates, introducing new aggregates or upgrading old ones.</p>
+<p>It looks to me that it could be convenient at an early stage of development and prototyping to keep the models in few aggregates, or in a single aggregate.</p>
+<p>This will simplify testing, prototyping, building the application service layer.</p>
+<p>However, at a later stage, a proper refactoring is needed by moving models to different aggregates or creating new aggregates.</p>
+<p>Refactoring aggregates in that sense means leaving the application service layer behavior unchanged.</p>
+<p>The steps that may be followed are:</p>
+<ul>
+<li>defining new aggregates and eventually create upgraded version of current aggregates</li>
+<li>moving models ownership from old aggregates to new aggregates (or to updated versions of the same aggregates which is the same)</li>
+<li>creating an upgraded version of the application service layer using the new set of aggregates</li>
+<li>applyng the equivalent tests of the previous service layer to the new one.</li>
+</ul>
+<p>About this latest point, a parametric testing strategy is also possible.</p>
+<p>Here is anexample of a list of tuples of multiple application version configuration with migration function.</p>
+<pre><code class="language-FSharp">let allVersions =
+    [
+        (AppVersions.applicationPostgresStorage,        AppVersions.applicationPostgresStorage,       fun () -&gt; () |&gt; Result.Ok)
+        (AppVersions.applicationShadowPostgresStorage,  AppVersions.applicationShadowPostgresStorage, fun () -&gt; () |&gt; Result.Ok)
+        (AppVersions.applicationPostgresStorage,        AppVersions.applicationShadowPostgresStorage, AppVersions.applicationPostgresStorage._migrator.Value)
+
+        (AppVersions.applicationMemoryStorage,          AppVersions.applicationMemoryStorage,         fun () -&gt; () |&gt; Result.Ok)
+        (AppVersions.applicationShadowMemoryStorage,    AppVersions.applicationShadowMemoryStorage,   fun () -&gt; () |&gt; Result.Ok)
+        (AppVersions.applicationMemoryStorage,          AppVersions.applicationShadowMemoryStorage,   AppVersions.applicationMemoryStorage._migrator.Value)
+    ]
+</code></pre>
+<p>There are specific attributes to distinguish current and &quot;upgrading&quot; verion of elements of the application. </p>
+<p>A migration function is needed to move data from old aggregates to new aggregates.</p>
+<p>Code here: [MultiVersionsTests.fs)[https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample.Test/MultiVersionsTests.fs]</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+    </div>
+    </body>
+</html>
