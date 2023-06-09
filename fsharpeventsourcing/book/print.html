@@ -437,7 +437,7 @@ This code remove a tag and any reference to it.</p>
 </code></pre>
 <p>The ability to do reseti must be enabled only for development and test storages (it is possible using Conf.fs file)</p>
 <p>An example of a storage implementation in postgres: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Micro_ES_FSharp_Lib/DbStorage.fs">DbStorage.fs</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="refactoring-stragegy"><a class="header" href="#refactoring-stragegy">Refactoring stragegy</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="refactoring-strategy"><a class="header" href="#refactoring-strategy">Refactoring strategy</a></h1>
 <p>Here I am showing a strategy for refactoring aggregates as moving the models ownership between aggregates, introducing new aggregates or upgrading old ones.</p>
 <p>It looks to me that it could be convenient at an early stage of development and prototyping to keep the models in few aggregates, or in a single aggregate.</p>
 <p>This will simplify testing, prototyping, building the application service layer.</p>
