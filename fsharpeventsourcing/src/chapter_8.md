@@ -41,5 +41,5 @@ There are specific attributes to distinguish current and "upgrading" verion of e
 
 A migration function is needed to move data from old aggregates to new aggregates.
 
-Code here: [MultiVersionsTests.fs)[https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample.Test/MultiVersionsTests.fs]
+Code here: [MultiVersionsTests.fs](https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample.Test/MultiVersionsTests.fs)
 
