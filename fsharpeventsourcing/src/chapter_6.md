@@ -76,8 +76,6 @@ Note that here the evolve function is used, which is part of the core library an
             ) (h |> Ok)
 ```
 
-
-
 Code in [Repository.fs](https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Repository.fs) and
 [Core.fs](https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Core.fs)
 

@@ -1,7 +1,7 @@
 # Models
 
 In sharpino models are collections of entities.
-A model can contain references to elements of other models only indirectly, for example using external ids.
+A model can contain references to elements of other models only indirectly, for example by including their ids.
 
 A Simple model for todo items:
 

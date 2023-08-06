@@ -1,6 +1,6 @@
 # Aggregates
 
-An aggregate is a class that handles one or more models in a consistent way, taking care of integrities between the models. The state of an aggregate can be rebuild by using snapshots and by processing stored events.
+An aggregate is a class that handles one or more models, preserving their invariant conditions. We will be able to access to the state of the aggregate by processing the stored events (aggregate state is function of events).
 
 An aggregate must define the following static members:
 
@@ -31,8 +31,8 @@ Example:
             15
 ```
 
-Some members of the aggregate  virtually changes it state (i.e. return the aggregate in a new state or error).  Those members will be assicated to specific events (see next section).
-In the following example the aggregate of the todos manage also the categories models and so it provides checkings on the categories models when adding a todo.
+Some members of the aggregate  virtually changes its state (i.e. they return the aggregate in a new state or an error).  Those members will be assiociated to specific events data structure (see next section).
+In the following example the aggregate of the todos manages also the categories model and so it provides check related to categories before adding a todo (only todo with existing category ids can be added).
 It uses a computational expression included in the FsToolkit.ErrorHandling library to manage errors.
 
 Example:

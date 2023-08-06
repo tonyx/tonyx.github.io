@@ -148,17 +148,18 @@
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
 <p><a href="https://github.com/tonyx/Micro_ES_FSharp_Lib">Sharpino</a> is a simple F# event sourcing library for .NET Core.
 It is a project for study and for experimenting.
-At the moment (2021-10-10) it supports for storing data in memory and in a Postgres database.
+At the moment (2023-08-06) it supports in memory and postgres storage for events and snapshots.
 I started implementing also Eventstoredb.</p>
 <p>This document gives a quick overview of the framework, the sample application (only api for any client, no user intrface) and some hints about a refactoring and migration strategy.</p>
 <h2 id="the-sample-application"><a class="header" href="#the-sample-application">The sample application</a></h2>
-<p>The sample application is a simple todo list manager.
+<p>By sample application I mean the business logic without any user interface.
+The sample application is a simple todo list manager.
 Such todo contains reference to Tags and Categories.
-Tags and categories are models that are managed by aggregates.
-I will show a solution of the aggregate refactoring problem: how to migrate from a specific aggregate configuration to another one. Particularly there is the version 1 of the application where we have an aggregate for Todos and Categories, and another aggregate for Tags. The refactoring consist on the migration in a configuraion where we have three aggregates: Todos, Categories and Tags.</p>
+Tags, categories and todos are models that are managed by aggregates.
+I will show a solution of the aggregate refactoring problem: how to migrate from a specific aggregate configuration to another one. Particularly there is the version 1 of the application where we have an aggregate for Todos and Categories, and another aggregate for Tags. The refactoring consist on the migration in a configuraion where we have three different aggregates: Todos, Categories and Tags.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="models"><a class="header" href="#models">Models</a></h1>
 <p>In sharpino models are collections of entities.
-A model can contain references to elements of other models only indirectly, for example using external ids.</p>
+A model can contain references to elements of other models only indirectly, for example by including their ids.</p>
 <p>A Simple model for todo items:</p>
 <pre><code class="language-FSharp">    type Todo =
         {
@@ -179,7 +180,7 @@ A model can contain references to elements of other models only indirectly, for 
 </code></pre>
 <p>Source: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/models/TodosModel.fs">TodosModel.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="aggregates"><a class="header" href="#aggregates">Aggregates</a></h1>
-<p>An aggregate is a class that handles one or more models in a consistent way, taking care of integrities between the models. The state of an aggregate can be rebuild by using snapshots and by processing stored events.</p>
+<p>An aggregate is a class that handles one or more models, preserving their invariant conditions. We will be able to access to the state of the aggregate by processing the stored events (aggregate state is function of events).</p>
 <p>An aggregate must define the following static members:</p>
 <ul>
 <li>
@@ -218,8 +219,8 @@ A model can contain references to elements of other models only indirectly, for 
         static member SnapshotsInterval =
             15
 </code></pre>
-<p>Some members of the aggregate  virtually changes it state (i.e. return the aggregate in a new state or error).  Those members will be assicated to specific events (see next section).
-In the following example the aggregate of the todos manage also the categories models and so it provides checkings on the categories models when adding a todo.
+<p>Some members of the aggregate  virtually changes its state (i.e. they return the aggregate in a new state or an error).  Those members will be assiociated to specific events data structure (see next section).
+In the following example the aggregate of the todos manages also the categories model and so it provides check related to categories before adding a todo (only todo with existing category ids can be added).
 It uses a computational expression included in the FsToolkit.ErrorHandling library to manage errors.</p>
 <p>Example:</p>
 <pre><code class="language-FSharp">    member this.AddTodo (t: Todo) =
@@ -327,23 +328,22 @@ The abstract definitions of Command and Undoer (see later) are:</p>
 <p>Any command must ensure that it returns some events only if those events, when applied to the current aggregate state, will return an Ok result (and no error). 
 Commands can use event caching if it is enabled.</p>
 <h2 id="undoer"><a class="header" href="#undoer">Undoer</a></h2>
-<p>A command may have associated an undoer which is similar to a command but it is aimedo to  compensate the effect of a command in case such command is a part of a transaction that fails, in case the command has already been executed and in case the storage does not support multiple stream transactions.</p>
+<p>A command may have associated an <em>undoer</em> which is similar to a command but it is aimedo to  compensate the effect of a command in case such command is a part of a transaction that fails. We need the <em>undoer</em> only if the storage lack of multiple streams transactions.</p>
 <pre><code class="language-FSharp">    type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
 </code></pre>
-<p>The Undoer is actually used in the experimentals &quot;LightRepository&quot; and EventStoreBridge.
-The ordinary repository using in memory or Postgres storage will not need the undoer because multiple stream transaction is supported.</p>
-<p>Before giving an example of undoer let me rewrie the abstract definition of a command.</p>
+<p>I use the Undoer in the experimental &quot;LightRepository&quot; and EventStoreBridge.
+So, as a recap: ordinary repository that uses only in memory or Postgres storage will not need the undoer because in memory and postgres storage support multiple stream transactions.</p>
+<p>Before giving an example of undoer let me rewrite the abstract definition of a command.</p>
 <pre><code class="language-FSharp">    type Command&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
         abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
         abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
 </code></pre>
-<p>The optional member Undoer of a command given the current state of the aggregate returns a result of Undoer.
-Then the undoer is ready to be executed and return a list of events that will compensate the effect of the command.</p>
+<p>The optional member Undoer of a command, given the current state of the aggregate, returns a function that applied to the states returns an undoer.
+Then the undoer is ready to be executed and can  return a list of events that can compensate the effect of the command.</p>
 <p>In the following example I try to explain why the undoer needs to work in two shots: at first it taks as parameter the state of the aggregate before any operation involving it in a transaction returning a new function to be executed eventually later.
 If the transaction fails then the function returned can be applied to reverse the effect of the already executed command.</p>
-<p>Example:</p>
 <p>The removeTag command returns a list of TagRemoved events. When they are executed they will remove the tag from the aggregate state.</p>
-<p>In a transaction context if you want to reverse the effect of the removeTag command you need to add the tag again to the aggregate state. For this reason you need to build a context before the removal where the context in that case is the Tag itself, in order to be able to &quot;readd&quot; it.</p>
+<p>In a transaction context if you want to reverse the effect of the removeTag command you need to readd the tag to the aggregate state. For this reason you need to build a context before the removal.</p>
 <p>This is the example of the undoer for the tags:</p>
 <pre><code class="language-Fsharp">    member this.Undoer = 
         match this with
@@ -376,7 +376,7 @@ If the transaction fails then the function returned can be applied to reverse th
 </code></pre>
 <p>Sources: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Commands.fs">Commands.fs</a>)</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
-<p>An application service layer provides services that actually interface to Respository and Storage to send commands and get the state of the aggregates.</p>
+<p>An application service layer provides services that actually uses  Respository and Storage to send commands and get the state of the aggregates.</p>
 <p>Here is an example of an entry for the services involving a single aggregate.</p>
 <pre><code class="language-FSharp">    member this.addTag tag =
         ResultCE.result {
@@ -407,9 +407,7 @@ If the transaction fails then the function returned can be applied to reverse th
             return ()
         }
 </code></pre>
-<p>According to a business rule, the todo can be added only if it contains valid tag references.
-The fact that the block seen is protected by the lock ensures that this rule is respected: according to the mentioned business rule, I want to make impossible that an event related to the tags is stored between the moment the code gets the tagId list and the moment the code adds the todo.
-That would have the effect of making the todo invalid.</p>
+<p>The todo can be added only if it contains valid tag references.</p>
 <p>Another example is the following, about sending commands to more aggregates.
 This code removes the tag with any reference to it. It build two commands and make the repository process them at the same tim.
 This code remove a tag and any reference to it.</p>

@@ -145,7 +145,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
-<p>An application service layer provides services that actually interface to Respository and Storage to send commands and get the state of the aggregates.</p>
+<p>An application service layer provides services that actually uses  Respository and Storage to send commands and get the state of the aggregates.</p>
 <p>Here is an example of an entry for the services involving a single aggregate.</p>
 <pre><code class="language-FSharp">    member this.addTag tag =
         ResultCE.result {
@@ -176,9 +176,7 @@
             return ()
         }
 </code></pre>
-<p>According to a business rule, the todo can be added only if it contains valid tag references.
-The fact that the block seen is protected by the lock ensures that this rule is respected: according to the mentioned business rule, I want to make impossible that an event related to the tags is stored between the moment the code gets the tagId list and the moment the code adds the todo.
-That would have the effect of making the todo invalid.</p>
+<p>The todo can be added only if it contains valid tag references.</p>
 <p>Another example is the following, about sending commands to more aggregates.
 This code removes the tag with any reference to it. It build two commands and make the repository process them at the same tim.
 This code remove a tag and any reference to it.</p>

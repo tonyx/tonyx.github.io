@@ -1,6 +1,6 @@
 # Application service layer
 
-An application service layer provides services that actually interface to Respository and Storage to send commands and get the state of the aggregates.
+An application service layer provides services that actually uses  Respository and Storage to send commands and get the state of the aggregates.
 
 Here is an example of an entry for the services involving a single aggregate.
 
@@ -40,9 +40,7 @@ The following example shows a service function that uses two aggregates and an e
         }
 ```
 
-According to a business rule, the todo can be added only if it contains valid tag references.
-The fact that the block seen is protected by the lock ensures that this rule is respected: according to the mentioned business rule, I want to make impossible that an event related to the tags is stored between the moment the code gets the tagId list and the moment the code adds the todo.
-That would have the effect of making the todo invalid.
+The todo can be added only if it contains valid tag references.
 
 Another example is the following, about sending commands to more aggregates.
 This code removes the tag with any reference to it. It build two commands and make the repository process them at the same tim.
