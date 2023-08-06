@@ -146,10 +146,18 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
-<p><a href="https://github.com/tonyx/Micro_ES_FSharp_Lib">Sharpino</a> is a simple F# event sourcing library.
-This document gives a quick overview of the library, the sample application and some hints about a refactoring and migration strategy.</p>
+<p><a href="https://github.com/tonyx/Micro_ES_FSharp_Lib">Sharpino</a> is a simple F# event sourcing library for .NET Core.
+It is a project for study and for experimenting.
+At the moment (2021-10-10) it supports for storing data in memory and in a Postgres database.
+I started implementing also Eventstoredb.</p>
+<p>This document gives a quick overview of the framework, the sample application (only api for any client, no user intrface) and some hints about a refactoring and migration strategy.</p>
+<h2 id="the-sample-application"><a class="header" href="#the-sample-application">The sample application</a></h2>
+<p>The sample application is a simple todo list manager.
+Such todo contains reference to Tags and Categories.
+Tags and categories are models that are managed by aggregates.
+I will show a solution of the aggregate refactoring problem: how to migrate from a specific aggregate configuration to another one. Particularly there is the version 1 of the application where we have an aggregate for Todos and Categories, and another aggregate for Tags. The refactoring consist on the migration in a configuraion where we have three aggregates: Todos, Categories and Tags.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="models"><a class="header" href="#models">Models</a></h1>
-<p>Models (unofficial term) are collections of basic entities like records.
+<p>In sharpino models are collections of entities.
 A model can contain references to elements of other models only indirectly, for example using external ids.</p>
 <p>A Simple model for todo items:</p>
 <pre><code class="language-FSharp">    type Todo =
@@ -171,14 +179,26 @@ A model can contain references to elements of other models only indirectly, for 
 </code></pre>
 <p>Source: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/models/TodosModel.fs">TodosModel.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="aggregates"><a class="header" href="#aggregates">Aggregates</a></h1>
-<p>An aggregate is a class that handles one or more models. The state of an aggregate can be rebuild by using snapshots and by processing stored events.</p>
+<p>An aggregate is a class that handles one or more models in a consistent way, taking care of integrities between the models. The state of an aggregate can be rebuild by using snapshots and by processing stored events.</p>
 <p>An aggregate must define the following static members:</p>
 <ul>
-<li><strong>Zero</strong>: an instance of the aggregate in its intitial state. </li>
-<li><strong>StorageName</strong> and  <strong>Version</strong>: this combination uniquely identifies the aggreagate  to make sure the storage will store snapshots and events in dedicated tables.</li>
-<li><strong>LockObject</strong>: the repository uses them to lock the aggregate while storing related events ensuring consistency. an application layer may use them explicitly to ensure inter-aggregate integrity (invariant conditions involving models in different aggregates).</li>
-<li><strong>SnapshotsInterval</strong>: the number of the events that can be stored after a snapshot before creating a new snapshot (i.e. the numer of events between snapshots)</li>
-<li><strong>Zero</strong>: the aggregate's initial state, when no events happened yet.</li>
+<li>
+<p><strong>Zero</strong>: an instance of the aggregate in its intitial state. </p>
+</li>
+<li>
+<p><strong>StorageName</strong> and  <strong>Version</strong>: this combination uniquely identifies the aggragate  and let the storage know in which stream to store events and snapshots.</p>
+</li>
+<li>
+<ul>
+<li><strong>LockObject</strong>: (<em>warning: the lockobject concept is obsolete. At the moment I am providing an actor model based mailboxprocessor to ensure single thread chain command-&gt;events-&gt;eventstoring, so you will skip this part</em>). the repository uses them to lock the aggregate while storing related events ensuring consistency. an application layer may use them explicitly to ensure inter-aggregate integrity (invariant conditions involving models in different aggregates).</li>
+</ul>
+</li>
+<li>
+<p><strong>SnapshotsInterval</strong>: the number of the events that can be stored after a snapshot before creating a new snapshot (i.e. the numer of events between snapshots)</p>
+</li>
+<li>
+<p><strong>Zero</strong>: the aggregate's initial state, when no events happened yet.</p>
+</li>
 </ul>
 <p>Example:</p>
 <pre><code class="language-FSharp">    type TodosAggregate =
@@ -195,12 +215,12 @@ A model can contain references to elements of other models only indirectly, for 
             &quot;_todo&quot;
         static member Version =
             &quot;_01&quot;
-        static member LockObj =
-            LockObject.Instance.LokObject
         static member SnapshotsInterval =
             15
 </code></pre>
-<p>Some member of the aggregate has the role of &quot;changing&quot; its state. They are functions returning a new instance of the aggregate with the new state in a Result type. Those members will be assicated to specific events (see next section).</p>
+<p>Some members of the aggregate  virtually changes it state (i.e. return the aggregate in a new state or error).  Those members will be assicated to specific events (see next section).
+In the following example the aggregate of the todos manage also the categories models and so it provides checkings on the categories models when adding a todo.
+It uses a computational expression included in the FsToolkit.ErrorHandling library to manage errors.</p>
 <p>Example:</p>
 <pre><code class="language-FSharp">    member this.AddTodo (t: Todo) =
         let checkCategoryExists (c: Guid ) =
@@ -208,9 +228,9 @@ A model can contain references to elements of other models only indirectly, for 
             |&gt; List.exists (fun x -&gt; x.Id = c) 
             |&gt; boolToResult (sprintf &quot;A category with id '%A' does not exist&quot; c)
 
-        ResultCE.result
+        result
             {
-                let! categoriesMustExist = t.CategoryIds |&gt; catchErrors checkCategoryExists // FOCUS HERE
+                let! categoriesMustExist = t.CategoryIds |&gt; catchErrors checkCategoryExists
                 let! todos = this.todos.AddTodo t
                 return 
                     {
@@ -219,9 +239,9 @@ A model can contain references to elements of other models only indirectly, for 
                     }
             }
 </code></pre>
-<p>Source: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Micro_ES_FSharp_Lib.Sample/aggregates/Todos/Aggregate.fs">TodosAggregate.fs</a></p>
+<p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Aggregate.fs">TodosAggregate.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="events"><a class="header" href="#events">Events</a></h1>
-<p>Events are associated to the members of the aggregate that returns a new version of the aggregate (or error). They are defined as Discriminated Union (Du) type. </p>
+<p>Events are associated to the members of the aggregate that virtually change the state of the aggregate.  They are defined as Discriminated Union (Du) type. </p>
 <p>The abstract definition of an Event is: </p>
 <pre><code class="language-FSharp">    type Event&lt;'A&gt; =
         abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
@@ -252,14 +272,19 @@ A model can contain references to elements of other models only indirectly, for 
                     | TodoRemoved (g: Guid) -&gt; 
                         EventCache&lt;TodosAggregate&gt;.Instance.Memoize (fun () -&gt; x.RemoveTodo g) (x, [TodoRemoved t]) 
 </code></pre>
-<p>Event Caching is disabled by default. See &quot;EVENTS_CACHING_ENABLED&quot; in the project file: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Sharpino.Lib.fsproj">project file</a>
+<p>Event Caching is disabled by default. See &quot;EVENTS_CACHING_ENABLED&quot; in the project file: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/Sharpino.Lib.fsproj">project file</a>
 To enabled the caching of events, the library must be compiled with the following compilation symbol: <code>EVENTS_CACHING_ENABLED</code>.</p>
-<p>Source:  <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Micro_ES_FSharp_Lib.Sample/aggregates/Todos/Events.fs">Events.fs</a></p>
+<p>Source:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Events.fs">Events.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
 <p>Commands are based on DU types and, when executed, will produce lists of events or error.
-The abstract definition of a command is:</p>
-<pre><code class="language-FSharp">    type Command&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
+The abstract definitions of Command and Undoer (see later) are:</p>
+<pre><code class="language-FSharp">
+    type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
+
+    type Command&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
         abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
+        abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
+
 </code></pre>
 <p>Example:</p>
 <pre><code class="language-FSharp">    type TodoCommand =
@@ -278,6 +303,7 @@ The abstract definition of a command is:</p>
                         x.RemoveTodo g with
                         | Ok _ -&gt; [TodoEvent.TodoRemoved g] |&gt; Ok
                         | Error x -&gt; x |&gt; Error
+            member this.Undoer = None
 </code></pre>
 <p>Commands return events in a list, so they can return multiple events, as follows:</p>
 <pre><code class="language-FSharp">    type TodoCommand =
@@ -295,13 +321,62 @@ The abstract definition of a command is:</p>
                 match evolved() with
                     | Ok _ -&gt; [TodoEvent.TodoAdded t1; TodoEvent.TodoAdded t2] |&gt; Ok
                     | Error x -&gt; x |&gt; Error
+            member this.Undoer
 
 </code></pre>
 <p>Any command must ensure that it returns some events only if those events, when applied to the current aggregate state, will return an Ok result (and no error). 
 Commands can use event caching if it is enabled.</p>
-<p>Sources: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/aggregates/Todos/Commands.fs">Commands.fs</a>)</p>
+<h2 id="undoer"><a class="header" href="#undoer">Undoer</a></h2>
+<p>A command may have associated an undoer which is similar to a command but it is aimedo to  compensate the effect of a command in case such command is a part of a transaction that fails, in case the command has already been executed and in case the storage does not support multiple stream transactions.</p>
+<pre><code class="language-FSharp">    type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
+</code></pre>
+<p>The Undoer is actually used in the experimentals &quot;LightRepository&quot; and EventStoreBridge.
+The ordinary repository using in memory or Postgres storage will not need the undoer because multiple stream transaction is supported.</p>
+<p>Before giving an example of undoer let me rewrie the abstract definition of a command.</p>
+<pre><code class="language-FSharp">    type Command&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
+        abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
+        abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
+</code></pre>
+<p>The optional member Undoer of a command given the current state of the aggregate returns a result of Undoer.
+Then the undoer is ready to be executed and return a list of events that will compensate the effect of the command.</p>
+<p>In the following example I try to explain why the undoer needs to work in two shots: at first it taks as parameter the state of the aggregate before any operation involving it in a transaction returning a new function to be executed eventually later.
+If the transaction fails then the function returned can be applied to reverse the effect of the already executed command.</p>
+<p>Example:</p>
+<p>The removeTag command returns a list of TagRemoved events. When they are executed they will remove the tag from the aggregate state.</p>
+<p>In a transaction context if you want to reverse the effect of the removeTag command you need to add the tag again to the aggregate state. For this reason you need to build a context before the removal where the context in that case is the Tag itself, in order to be able to &quot;readd&quot; it.</p>
+<p>This is the example of the undoer for the tags:</p>
+<pre><code class="language-Fsharp">    member this.Undoer = 
+        match this with
+        | RemoveTag g -&gt; 
+            // block to be executed before the actual command removing tag is executed. It will return another function with the context needed (the tag itself)
+            (fun (x: TagsAggregate) -&gt;
+                result {
+                    let! tag = x.GetTag g
+                    let result =
+
+                        // block to be executed after the actual command removing tag is executed. It will return the list of events to be applied to the aggregate state to compensate the effect of the command. Note that the tag is the context needed to readd the tag to the aggregate state.
+
+                        fun (x': TagsAggregate) -&gt;
+                            x'.AddTag tag 
+                            |&gt; Result.map (fun _ -&gt; [TagAdded tag])
+                    return result
+                }
+            )
+            |&gt; Some
+        | AddTag t -&gt;
+            // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. The context is the tag itself (particularly its id), that is not lost during the transaction.
+            (fun (_: TagsAggregate) -&gt;
+                fun (x': TagsAggregate) -&gt;
+                    x'.RemoveTag t.Id 
+                    |&gt; Result.map (fun _ -&gt; [TagAdded t])
+                |&gt; Ok
+            )
+            |&gt; Some
+
+</code></pre>
+<p>Sources: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Commands.fs">Commands.fs</a>)</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
-<p>An application service layer provides services by bulding and sending commands related to one ore more aggregates. </p>
+<p>An application service layer provides services that actually interface to Respository and Storage to send commands and get the state of the aggregates.</p>
 <p>Here is an example of an entry for the services involving a single aggregate.</p>
 <pre><code class="language-FSharp">    member this.addTag tag =
         ResultCE.result {
@@ -346,7 +421,9 @@ This code remove a tag and any reference to it.</p>
             return ()
         }
 </code></pre>
-<p>Source: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/App.fs">App.fs</a></p>
+<p>With reference to the example involving the &quot;under&quot; of a command: the runTwoCommands function is executed in a transactional context if the storage supports multiple streams transactions (i.e. Postgres or in memory).
+In the case the storage does not support multiple streams transactions (i.e. Eventstoredb) the runTwoCommands function will execute the two commands in a sequence and uses the undoer (if provided) to rollback the effect of the first command in case the second command fails.</p>
+<p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/App.fs">App.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="repository"><a class="header" href="#repository">Repository</a></h1>
 <p>The repository has the responsibility of:</p>
 <ul>
@@ -419,6 +496,9 @@ This code remove a tag and any reference to it.</p>
 </code></pre>
 <p>Code in <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Repository.fs">Repository.fs</a> and
 <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Core.fs">Core.fs</a></p>
+<p>There is also an experimental repository based on a publish/subscribe storage model (Eventstoredb).
+See lightrepository</p>
+<p><a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/LightRepository.fs">LightRepository.fs</a> </p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="storage"><a class="header" href="#storage">Storage</a></h1>
 <p>A storage stores and retrieves events and snapshots about any aggregate.</p>
 <p>Storage must ensure transactionality particularly in special cases like when adding events related to multiple aggregates.</p>
@@ -435,7 +515,11 @@ This code remove a tag and any reference to it.</p>
     abstract member GetEventsAfterId: version -&gt; int -&gt; Name -&gt; List&lt;int * string &gt;
 </code></pre>
 <p>Reset must be used only for development and test, and cannot be used in production. See Conf.fs.</p>
-<p>An example of a storage implementation in postgres: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Micro_ES_FSharp_Lib/DbStorage.fs">DbStorage.fs</a></p>
+<p>An example of a storage implementation in postgres: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/DbStorage.fs">DbStorage.fs</a></p>
+<h1 id="eventstorebridge"><a class="header" href="#eventstorebridge">EventStoreBridge:</a></h1>
+<p>The alternative storage is the EventStoreBridge, which is a bridge to the EventStore database.
+It is still experimental.
+<a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib.EventStore/EventStoreBridge.cs">EventStoreBridge.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="refactoring-strategy"><a class="header" href="#refactoring-strategy">Refactoring strategy</a></h1>
 <p>Here I am showing a strategy for refactoring aggregates in terms of:</p>
 <ul>

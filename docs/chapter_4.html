@@ -146,9 +146,14 @@
                     <main>
                         <h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
 <p>Commands are based on DU types and, when executed, will produce lists of events or error.
-The abstract definition of a command is:</p>
-<pre><code class="language-FSharp">    type Command&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
+The abstract definitions of Command and Undoer (see later) are:</p>
+<pre><code class="language-FSharp">
+    type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
+
+    type Command&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
         abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
+        abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
+
 </code></pre>
 <p>Example:</p>
 <pre><code class="language-FSharp">    type TodoCommand =
@@ -167,6 +172,7 @@ The abstract definition of a command is:</p>
                         x.RemoveTodo g with
                         | Ok _ -&gt; [TodoEvent.TodoRemoved g] |&gt; Ok
                         | Error x -&gt; x |&gt; Error
+            member this.Undoer = None
 </code></pre>
 <p>Commands return events in a list, so they can return multiple events, as follows:</p>
 <pre><code class="language-FSharp">    type TodoCommand =
@@ -184,11 +190,60 @@ The abstract definition of a command is:</p>
                 match evolved() with
                     | Ok _ -&gt; [TodoEvent.TodoAdded t1; TodoEvent.TodoAdded t2] |&gt; Ok
                     | Error x -&gt; x |&gt; Error
+            member this.Undoer
 
 </code></pre>
 <p>Any command must ensure that it returns some events only if those events, when applied to the current aggregate state, will return an Ok result (and no error). 
 Commands can use event caching if it is enabled.</p>
-<p>Sources: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/aggregates/Todos/Commands.fs">Commands.fs</a>)</p>
+<h2 id="undoer"><a class="header" href="#undoer">Undoer</a></h2>
+<p>A command may have associated an undoer which is similar to a command but it is aimedo to  compensate the effect of a command in case such command is a part of a transaction that fails, in case the command has already been executed and in case the storage does not support multiple stream transactions.</p>
+<pre><code class="language-FSharp">    type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
+</code></pre>
+<p>The Undoer is actually used in the experimentals &quot;LightRepository&quot; and EventStoreBridge.
+The ordinary repository using in memory or Postgres storage will not need the undoer because multiple stream transaction is supported.</p>
+<p>Before giving an example of undoer let me rewrie the abstract definition of a command.</p>
+<pre><code class="language-FSharp">    type Command&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
+        abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
+        abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
+</code></pre>
+<p>The optional member Undoer of a command given the current state of the aggregate returns a result of Undoer.
+Then the undoer is ready to be executed and return a list of events that will compensate the effect of the command.</p>
+<p>In the following example I try to explain why the undoer needs to work in two shots: at first it taks as parameter the state of the aggregate before any operation involving it in a transaction returning a new function to be executed eventually later.
+If the transaction fails then the function returned can be applied to reverse the effect of the already executed command.</p>
+<p>Example:</p>
+<p>The removeTag command returns a list of TagRemoved events. When they are executed they will remove the tag from the aggregate state.</p>
+<p>In a transaction context if you want to reverse the effect of the removeTag command you need to add the tag again to the aggregate state. For this reason you need to build a context before the removal where the context in that case is the Tag itself, in order to be able to &quot;readd&quot; it.</p>
+<p>This is the example of the undoer for the tags:</p>
+<pre><code class="language-Fsharp">    member this.Undoer = 
+        match this with
+        | RemoveTag g -&gt; 
+            // block to be executed before the actual command removing tag is executed. It will return another function with the context needed (the tag itself)
+            (fun (x: TagsAggregate) -&gt;
+                result {
+                    let! tag = x.GetTag g
+                    let result =
+
+                        // block to be executed after the actual command removing tag is executed. It will return the list of events to be applied to the aggregate state to compensate the effect of the command. Note that the tag is the context needed to readd the tag to the aggregate state.
+
+                        fun (x': TagsAggregate) -&gt;
+                            x'.AddTag tag 
+                            |&gt; Result.map (fun _ -&gt; [TagAdded tag])
+                    return result
+                }
+            )
+            |&gt; Some
+        | AddTag t -&gt;
+            // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. The context is the tag itself (particularly its id), that is not lost during the transaction.
+            (fun (_: TagsAggregate) -&gt;
+                fun (x': TagsAggregate) -&gt;
+                    x'.RemoveTag t.Id 
+                    |&gt; Result.map (fun _ -&gt; [TagAdded t])
+                |&gt; Ok
+            )
+            |&gt; Some
+
+</code></pre>
+<p>Sources: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Commands.fs">Commands.fs</a>)</p>
 
                     </main>
 
