@@ -1,12 +1,13 @@
 # Aggregates
 
-An aggregate is a class that handles one or more models. The state of an aggregate can be rebuild by using snapshots and by processing stored events.
+An aggregate is a class that handles one or more models in a consistent way, taking care of integrities between the models. The state of an aggregate can be rebuild by using snapshots and by processing stored events.
 
 An aggregate must define the following static members:
 
 - __Zero__: an instance of the aggregate in its intitial state. 
-- __StorageName__ and  __Version__: this combination uniquely identifies the aggreagate  to make sure the storage will store snapshots and events in dedicated tables.
-- __LockObject__: the repository uses them to lock the aggregate while storing related events ensuring consistency. an application layer may use them explicitly to ensure inter-aggregate integrity (invariant conditions involving models in different aggregates).
+- __StorageName__ and  __Version__: this combination uniquely identifies the aggragate  and let the storage know in which stream to store events and snapshots.
+
+- - __LockObject__: (_warning: the lockobject concept is obsolete. At the moment I am providing an actor model based mailboxprocessor to ensure single thread chain command->events->eventstoring, so you will skip this part_). the repository uses them to lock the aggregate while storing related events ensuring consistency. an application layer may use them explicitly to ensure inter-aggregate integrity (invariant conditions involving models in different aggregates).
 - __SnapshotsInterval__: the number of the events that can be stored after a snapshot before creating a new snapshot (i.e. the numer of events between snapshots)
 - __Zero__: the aggregate's initial state, when no events happened yet.
 
@@ -26,13 +27,13 @@ Example:
             "_todo"
         static member Version =
             "_01"
-        static member LockObj =
-            LockObject.Instance.LokObject
         static member SnapshotsInterval =
             15
 ```
 
-Some member of the aggregate has the role of "changing" its state. They are functions returning a new instance of the aggregate with the new state in a Result type. Those members will be assicated to specific events (see next section).
+Some members of the aggregate  virtually changes it state (i.e. return the aggregate in a new state or error).  Those members will be assicated to specific events (see next section).
+In the following example the aggregate of the todos manage also the categories models and so it provides checkings on the categories models when adding a todo.
+It uses a computational expression included in the FsToolkit.ErrorHandling library to manage errors.
 
 Example:
 ```FSharp
@@ -42,9 +43,9 @@ Example:
             |> List.exists (fun x -> x.Id = c) 
             |> boolToResult (sprintf "A category with id '%A' does not exist" c)
 
-        ResultCE.result
+        result
             {
-                let! categoriesMustExist = t.CategoryIds |> catchErrors checkCategoryExists // FOCUS HERE
+                let! categoriesMustExist = t.CategoryIds |> catchErrors checkCategoryExists
                 let! todos = this.todos.AddTodo t
                 return 
                     {
@@ -55,4 +56,4 @@ Example:
 ```
 
 
-Source: [TodosAggregate.fs](https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Micro_ES_FSharp_Lib.Sample/aggregates/Todos/Aggregate.fs)
+Source: [TodosAggregate.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Aggregate.fs)

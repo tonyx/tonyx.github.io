@@ -1,6 +1,6 @@
 # Models
 
-Models (unofficial term) are collections of basic entities like records.
+In sharpino models are collections of entities.
 A model can contain references to elements of other models only indirectly, for example using external ids.
 
 A Simple model for todo items:

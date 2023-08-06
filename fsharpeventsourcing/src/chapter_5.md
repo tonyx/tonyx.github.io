@@ -1,6 +1,6 @@
 # Application service layer
 
-An application service layer provides services by bulding and sending commands related to one ore more aggregates. 
+An application service layer provides services that actually interface to Respository and Storage to send commands and get the state of the aggregates.
 
 Here is an example of an entry for the services involving a single aggregate.
 
@@ -58,7 +58,10 @@ This code remove a tag and any reference to it.
         }
 ```
 
-Source: [App.fs](https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/App.fs)
+With reference to the example involving the "under" of a command: the runTwoCommands function is executed in a transactional context if the storage supports multiple streams transactions (i.e. Postgres or in memory).
+In the case the storage does not support multiple streams transactions (i.e. Eventstoredb) the runTwoCommands function will execute the two commands in a sequence and uses the undoer (if provided) to rollback the effect of the first command in case the second command fails.
+
+Source: [App.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/App.fs)
 
 
 
