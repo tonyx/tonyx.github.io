@@ -160,7 +160,11 @@
     abstract member GetEventsAfterId: version -&gt; int -&gt; Name -&gt; List&lt;int * string &gt;
 </code></pre>
 <p>Reset must be used only for development and test, and cannot be used in production. See Conf.fs.</p>
-<p>An example of a storage implementation in postgres: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Micro_ES_FSharp_Lib/DbStorage.fs">DbStorage.fs</a></p>
+<p>An example of a storage implementation in postgres: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/DbStorage.fs">DbStorage.fs</a></p>
+<h1 id="eventstorebridge"><a class="header" href="#eventstorebridge">EventStoreBridge:</a></h1>
+<p>The alternative storage is the EventStoreBridge, which is a bridge to the EventStore database.
+It is still experimental.
+<a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib.EventStore/EventStoreBridge.cs">EventStoreBridge.fs</a></p>
 
                     </main>
 

@@ -145,7 +145,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
-<p>An application service layer provides services by bulding and sending commands related to one ore more aggregates. </p>
+<p>An application service layer provides services that actually interface to Respository and Storage to send commands and get the state of the aggregates.</p>
 <p>Here is an example of an entry for the services involving a single aggregate.</p>
 <pre><code class="language-FSharp">    member this.addTag tag =
         ResultCE.result {
@@ -190,7 +190,9 @@ This code remove a tag and any reference to it.</p>
             return ()
         }
 </code></pre>
-<p>Source: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/App.fs">App.fs</a></p>
+<p>With reference to the example involving the &quot;under&quot; of a command: the runTwoCommands function is executed in a transactional context if the storage supports multiple streams transactions (i.e. Postgres or in memory).
+In the case the storage does not support multiple streams transactions (i.e. Eventstoredb) the runTwoCommands function will execute the two commands in a sequence and uses the undoer (if provided) to rollback the effect of the first command in case the second command fails.</p>
+<p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/App.fs">App.fs</a></p>
 
                     </main>
 
