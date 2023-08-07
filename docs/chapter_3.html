@@ -145,14 +145,14 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="events"><a class="header" href="#events">Events</a></h1>
-<p>As I said before, some members of an aggregate act as &quot;state changer&quot;, operating add/update/delete on one or more of its models. 
-Each aggregate has an associated Event type and such event type is a Discriminated Union (Du) type with a case associated to &quot;state changer&quot; members of the aggregate.</p>
-<p>An event type can be defined, in abstract, as something that, when processed, return a new state of the aggregate or an error, which fits the following definition:</p>
+<p>As I said before, some members of an aggregate act as &quot;state changers&quot;, operating add/update/delete on one or more of its models. 
+Each aggregate has an associated Event type and such event type is a Discriminated Union (Du) type with a case associated with &quot;state changer&quot; members of the aggregate.</p>
+<p>An event type can be defined, in the abstract, as something that, when processed, returns a new state of the aggregate or an error, which fits the following definition:</p>
 <pre><code class="language-FSharp">    type Event&lt;'A&gt; =
         abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
 </code></pre>
-<p>The <em>'A</em> is the generic aggregate type the event is associated to.</p>
-<p>This is an example of a concrete implementation ov event relate to the TodoAggregate members <em>Add</em> and <em>Remove</em>:</p>
+<p>The <em>'A</em> is the generic aggregate type the event is associated with.</p>
+<p>This is an example of a concrete implementation of an event related to the TodoAggregate members <em>Add</em> and <em>Remove</em>:</p>
 <pre><code class="language-Fsharp">    type TodoEvent =
         | TodoAdded of Todo
         | TodoRemoved of Guid
@@ -166,7 +166,7 @@ Each aggregate has an associated Event type and such event type is a Discriminat
 
 </code></pre>
 <p>This shows that processing an event means calling the related aggregate member.</p>
-<p>You can do event caching by wrapping the call to the specific aggregate member in a lambda expression without evaluating it, and passing it to a specific cache manager that may eventually evaluate it and return the result or the cached result if the event has already been processed.</p>
+<p>You can do event caching by wrapping the call to the specific aggregate member in a lambda expression without evaluating it and passing it to a specific cache manager that may eventually evaluate it and return the result or the cached result if the event has already been processed.</p>
 <pre><code class="language-Fsharp">    type TodoEvent =
         | TodoAdded of Todo
         | TodoRemoved of Guid
@@ -178,9 +178,9 @@ Each aggregate has an associated Event type and such event type is a Discriminat
                     | TodoRemoved (g: Guid) -&gt; 
                         EventCache&lt;TodosAggregate&gt;.Instance.Memoize (fun () -&gt; x.RemoveTodo g) (x, [TodoRemoved t]) 
 </code></pre>
-<p>Having said that about caching, I am warning that  caching events doesn't look so much a &quot;performance booster&quot;. It looks more promising the caching of the state of the aggregate (see the next section).</p>
+<p>Having said that about caching, I am warning that caching events don't look so much like a &quot;performance booster&quot;. It looks more promising the caching of the state of the aggregate (see the next section).</p>
 <p>Therefore event Caching is disabled by default. See &quot;EVENTS_CACHING_ENABLED&quot; in the project file: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/Sharpino.Lib.fsproj">project file</a>
-To enabled the caching of events, the library must be compiled with the following compilation symbol: <code>EVENTS_CACHING_ENABLED</code>.</p>
+To enable the caching of events, the library must be compiled with the following compilation symbol: <code>EVENTS_CACHING_ENABLED</code>.</p>
 <p>Source:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Events.fs">Events.fs</a></p>
 
                     </main>
