@@ -160,7 +160,7 @@ The challenge is that you can write parametric tests that can be executed agains
 <div style="break-before: page; page-break-before: always;"></div><h1 id="models"><a class="header" href="#models">Models</a></h1>
 <p>In Sharpino models are collections of entities.
 Usually a model contains references to elements of other models only indirectly, for example by including their ids.
-However there can be exceptions when the model are closely related: for instance you may find convenient to define a model for orders and define a model for orderitems at the same place, so that orders can contain direct reference to orderitems.</p>
+However there can be exceptions when the model are closely related: for instance you may find convenient to define a model for orders and define a model for orderitems at the same place, so that orders can contain direct reference to orderitems instead of referencing them by their ids.</p>
 <p>A Simple model for todo items:</p>
 <pre><code class="language-FSharp">    type Todo =
         {
@@ -179,11 +179,11 @@ However there can be exceptions when the model are closely related: for instance
                     todos = []
                 }
 </code></pre>
-<p>As I can show in future documents, in an application using the Fable Remoting technology, the definition of the single entities of models must be shared with the Fable Client in a shared project, and that means that in our case the &quot;type Todo&quot; needs being in a Shared project. (shared between a Fable/Elmish client project).</p>
+<p>As I will hopefully show in future documents, in an application using technologies where entities definition must be shared between client and server, like inf Fable Remoting, the definition of the single entities of models must stai in a shared project, available to the client (Fable/Elmish) and to the server. So the &quot;Todo type&quot; will need to be in a shared project.</p>
 <p>Source: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/models/TodosModel.fs">TodosModel.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="aggregates"><a class="header" href="#aggregates">Aggregates</a></h1>
-<p>An aggregate is a class that contains one or more models. We will be able to access to the state of the aggregate by processing the stored events where the definitions of such events are closely related to members of the aggregate. </p>
-<p>Given tht the state of the aggregatre is a function of the related events present in the storage, an aggregate must define the following static members:</p>
+<p>An aggregate is a class that contains and handle one or more models. We will be able to access to the state of the aggregate by processing the stored events where the definitions of such events are closely related to members of the aggregate. </p>
+<p>Given that the state of the aggregatre is a function of the related events present in the storage, an aggregate must define the following static members:</p>
 <ul>
 <li>
 <p><strong>Zero</strong>: an instance of the aggregate in its intitial state. 
@@ -194,7 +194,7 @@ It is needed to initialize the aggregate when no events are present in the stora
 </li>
 <li>
 <ul>
-<li><strong>LockObject</strong>: (<em>warning: the lockobject concept is obsolete. It was meant to handle single thread processing but at the moment I am providing an actor model based mailboxprocessor to ensure single thread chain command-&gt;events-&gt;eventstoring, so you will skip this part</em>). Before introducing the mailboxprocessor, the repository was using them to lock the aggregate while storing related events ensuring consistency. An application layer was supposed to use them explicitly to ensure inter-aggregate integrity (invariant conditions involving models placed in different aggregates).</li>
+<li><strong>LockObject</strong>: (<em>warning: the lockobject concept is obsolete. It was meant to handle single thread processing but at the moment I am providing an actor model based mailboxprocessor to ensure single thread chain command-&gt;events-&gt;eventstoring, so you will skip this part</em>). Before introducing the mailboxprocessor, the repository was supposed to use aggregate lock while processing command and storing related events ensuring consistency. An application layer was also supposed to use them explicitly to ensure inter-aggregate integrity (invariant conditions involving models placed in different aggregates).</li>
 </ul>
 </li>
 <li>
@@ -220,7 +220,7 @@ It is needed to initialize the aggregate when no events are present in the stora
         static member SnapshotsInterval =
             15
 </code></pre>
-<p>Some members of the aggregate that ar meant to do action on it changing (virtually) its state (i.e. they return the aggregate in a new state or an error). Actually that means that such members will virtually change some models (add/upate/delete). Those members will be associated to specific events data structure (see next section).
+<p>Some members of the aggregate that are meant to do action on it changing (virtually) its state (i.e. they return the aggregate in a new state or an error). It atually means that such members will virtually change some models (add/upate/delete). Those members will be associated to specific events data structure (see next section).
 In the following example the aggregate of the todos manages also the categories model and so it provides check related to categories before adding a todo (you can add only todo with categoryIds related to existing categories).
 It uses a computational expression included in the FsToolkit.ErrorHandling library to manage errors in a <em>railway oriented programming</em> style.</p>
 <p>Example:</p>
@@ -241,6 +241,7 @@ It uses a computational expression included in the FsToolkit.ErrorHandling libra
                     }
             }
 </code></pre>
+<p>Recap: invariant conditions related to models residing in the same aggregate can be preserved without the need of explicit transaction, because at that level there is no awareness of the storage. Invariant conditions involving models residing in different aggregates must be preserved at the application layer level (see the next sections).</p>
 <p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Aggregate.fs">TodosAggregate.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="events"><a class="header" href="#events">Events</a></h1>
 <p>Events are associated to the members of the aggregate that virtually change the state of the aggregate (i.e. doing virtual add/update/delete on their models).  They are defined as Discriminated Union (Du) type. </p>
@@ -279,7 +280,7 @@ It uses a computational expression included in the FsToolkit.ErrorHandling libra
 To enabled the caching of events, the library must be compiled with the following compilation symbol: <code>EVENTS_CACHING_ENABLED</code>.</p>
 <p>Source:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Events.fs">Events.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
-<p>Commands are based on Discriminated Union types and, when executed, will produce lists of events or error.
+<p>Any commands is defined as a Discriminated Union type and, when executed, will produce a lists of events or an error.
 The abstract definitions of Command and Undoer (see later) are:</p>
 <pre><code class="language-FSharp">
     type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
@@ -308,7 +309,7 @@ The abstract definitions of Command and Undoer (see later) are:</p>
                         | Error x -&gt; x |&gt; Error
             member this.Undoer = None
 </code></pre>
-<p>Commands return events in a list, so they can return multiple events, as follows:</p>
+<p>It is unusual to define commands such as they will return multiple events, but they can do it, as follows:</p>
 <pre><code class="language-FSharp">    type TodoCommand =
         [...]
         | Add2Todos of Todo * Todo
@@ -330,22 +331,23 @@ The abstract definitions of Command and Undoer (see later) are:</p>
 <p>Any command must ensure that it returns some events only if those events, when applied to the current aggregate state, will return an Ok result (and no error). 
 Commands can use event caching if it is enabled as we have seen in the previous section.</p>
 <h2 id="undoer"><a class="header" href="#undoer">Undoer</a></h2>
-<p>A command may have associated an <em>undoer</em> which is similar to a command but it is aimedo to compensate the effect of a command in case such command is a part of a multiple stream transaction that fails. We need the <em>undoer</em> only if the storage lack of multiple streams transactions (which is the case of EventStoreDb)</p>
+<p>A command may have associated an <em>undoer</em> which is similar to a command but it is aimedo to eventually compensate the effect of a command in case such command is a part of a multiple stream transaction that fails. We need the <em>undoer</em> only if the storage lack of multiple streams transactions (which is the case of EventStoreDb)</p>
 <pre><code class="language-FSharp">    type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
 </code></pre>
-<p>I use the Undoer in the experimental &quot;LightRepository&quot; and EventStoreBridge.
-So, as a recap: when the repository uses only in memory or Postgres storage, it has no need of any undoer because in memory and postgres storage support multiple stream transactions.
-If you will use EventStoreDb as storage, you will need to provide an undoer for each command that is part of a multiple stream transaction.</p>
-<p>Before giving an example of undoer let me rewrite the abstract definition of a command.</p>
+<p>I use the Undoer in the experimental &quot;LightRepository&quot; and EventStoreBridge.</p>
+<p>So, as a recap: when the repository uses only in memory or Postgres storage, it has no need of any undoer because in memory and Postgres storage support multiple stream transactions.
+If you will use EventStoreDb as storage, you may want to provide an undoer for each command in case it will be part of a multiple stream transaction.</p>
+<p>Before giving an example of an undoer let me remind the abstract definition of a command.</p>
 <pre><code class="language-FSharp">    type Command&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
         abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
         abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
 </code></pre>
-<p>This is the how the Undoer of a command works:  given the current state of the aggregate, it returns a function that applied to the states actually returns an undoer.
-In this way the undoer is ready to be executed and can return a list of events that can compensate the effect of the command.</p>
-<p>So the undoers works in two shots: one to build a context for the eventual future undo, and one to atually do the &quot;undo&quot;. </p>
-<p>Here is an example:</p>
-<p>The removeTag command returns a list of TagRemoved events. When they are executed they will remove the tag from the aggregate state.</p>
+<p>The command provide an optional Undoer which is a function that returns an actual undoer.
+This how this works: given the current state of the aggregate, the &quot;command undoer&quot; returns a function that applied to the states actually returns an actual undoer.
+So in the undoer is ready to be executed and can return a list of events that can compensate the effect of the command.</p>
+<p>So the undoers works in two shots: one to build a context for the eventual future undo, and one to atually... <em>do the &quot;undo&quot;!</em>. </p>
+<p>Here is an example of why this apparent overcomplication is needed:</p>
+<p>The removeTag command returns a list of TagRemoved events. When those events are processed the result is the aggregate without the tags.</p>
 <p>In a transaction context if you want to be ready to eventually reverse the effect of the removeTag command you need to readd the tag to the aggregate state. For this reason you need to build a context before the removal so that the tag to be readded is actually available.</p>
 <p>From the code perspective:</p>
 <pre><code class="language-Fsharp">    member this.Undoer = 
@@ -606,8 +608,8 @@ It is still experimental.
 <li>upgrading old aggregates.</li>
 <li>dropping aggregates.</li>
 </ul>
-<p>Looks more convenient having few aggregate, in a development and prototyping stage.</p>
-<p>This will simplify testing, prototyping, building the application service layer.</p>
+<p>It looks more convenient having few aggregate, in a development and prototyping stage because this will simplify testing, prototyping, building the application service layer.
+Consider that having everithing in a single aggregate would mean that the application service layer will be able to handle all the models with few lines of code (just building single command for the repository)</p>
 <p>However, at a later stage, a proper refactoring is probably needed by moving models to different aggregates or creating new aggregates for performance reasons.</p>
 <p>Refactoring aggregates in that sense means leaving the application service layer behavior unchanged.</p>
 <p>The steps that may be followed are:</p>
@@ -615,7 +617,7 @@ It is still experimental.
 <li>defining new aggregates and eventually create upgraded version of current aggregates</li>
 <li>moving models ownership from old aggregates to new aggregates (or to updated versions of the same aggregates which is the same)</li>
 <li>creating an upgraded version of the application service layer using the new set of aggregates</li>
-<li>applyng the equivalent tests of the previous service layer to the new one.</li>
+<li>applying the equivalent tests of the previous service layer to the new one.</li>
 </ul>
 <p>About this latest point, a parametric testing strategy is also possible.</p>
 <p>Here is anexample of a list of tuples of multiple application version configuration with migration function.</p>

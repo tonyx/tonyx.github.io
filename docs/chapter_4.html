@@ -145,7 +145,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
-<p>Commands are based on Discriminated Union types and, when executed, will produce lists of events or error.
+<p>Any commands is defined as a Discriminated Union type and, when executed, will produce a lists of events or an error.
 The abstract definitions of Command and Undoer (see later) are:</p>
 <pre><code class="language-FSharp">
     type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
@@ -174,7 +174,7 @@ The abstract definitions of Command and Undoer (see later) are:</p>
                         | Error x -&gt; x |&gt; Error
             member this.Undoer = None
 </code></pre>
-<p>Commands return events in a list, so they can return multiple events, as follows:</p>
+<p>It is unusual to define commands such as they will return multiple events, but they can do it, as follows:</p>
 <pre><code class="language-FSharp">    type TodoCommand =
         [...]
         | Add2Todos of Todo * Todo
@@ -196,22 +196,23 @@ The abstract definitions of Command and Undoer (see later) are:</p>
 <p>Any command must ensure that it returns some events only if those events, when applied to the current aggregate state, will return an Ok result (and no error). 
 Commands can use event caching if it is enabled as we have seen in the previous section.</p>
 <h2 id="undoer"><a class="header" href="#undoer">Undoer</a></h2>
-<p>A command may have associated an <em>undoer</em> which is similar to a command but it is aimedo to compensate the effect of a command in case such command is a part of a multiple stream transaction that fails. We need the <em>undoer</em> only if the storage lack of multiple streams transactions (which is the case of EventStoreDb)</p>
+<p>A command may have associated an <em>undoer</em> which is similar to a command but it is aimedo to eventually compensate the effect of a command in case such command is a part of a multiple stream transaction that fails. We need the <em>undoer</em> only if the storage lack of multiple streams transactions (which is the case of EventStoreDb)</p>
 <pre><code class="language-FSharp">    type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
 </code></pre>
-<p>I use the Undoer in the experimental &quot;LightRepository&quot; and EventStoreBridge.
-So, as a recap: when the repository uses only in memory or Postgres storage, it has no need of any undoer because in memory and postgres storage support multiple stream transactions.
-If you will use EventStoreDb as storage, you will need to provide an undoer for each command that is part of a multiple stream transaction.</p>
-<p>Before giving an example of undoer let me rewrite the abstract definition of a command.</p>
+<p>I use the Undoer in the experimental &quot;LightRepository&quot; and EventStoreBridge.</p>
+<p>So, as a recap: when the repository uses only in memory or Postgres storage, it has no need of any undoer because in memory and Postgres storage support multiple stream transactions.
+If you will use EventStoreDb as storage, you may want to provide an undoer for each command in case it will be part of a multiple stream transaction.</p>
+<p>Before giving an example of an undoer let me remind the abstract definition of a command.</p>
 <pre><code class="language-FSharp">    type Command&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
         abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
         abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
 </code></pre>
-<p>This is the how the Undoer of a command works:  given the current state of the aggregate, it returns a function that applied to the states actually returns an undoer.
-In this way the undoer is ready to be executed and can return a list of events that can compensate the effect of the command.</p>
-<p>So the undoers works in two shots: one to build a context for the eventual future undo, and one to atually do the &quot;undo&quot;. </p>
-<p>Here is an example:</p>
-<p>The removeTag command returns a list of TagRemoved events. When they are executed they will remove the tag from the aggregate state.</p>
+<p>The command provide an optional Undoer which is a function that returns an actual undoer.
+This how this works: given the current state of the aggregate, the &quot;command undoer&quot; returns a function that applied to the states actually returns an actual undoer.
+So in the undoer is ready to be executed and can return a list of events that can compensate the effect of the command.</p>
+<p>So the undoers works in two shots: one to build a context for the eventual future undo, and one to atually... <em>do the &quot;undo&quot;!</em>. </p>
+<p>Here is an example of why this apparent overcomplication is needed:</p>
+<p>The removeTag command returns a list of TagRemoved events. When those events are processed the result is the aggregate without the tags.</p>
 <p>In a transaction context if you want to be ready to eventually reverse the effect of the removeTag command you need to readd the tag to the aggregate state. For this reason you need to build a context before the removal so that the tag to be readded is actually available.</p>
 <p>From the code perspective:</p>
 <pre><code class="language-Fsharp">    member this.Undoer = 

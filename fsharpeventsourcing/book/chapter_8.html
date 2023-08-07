@@ -152,8 +152,8 @@
 <li>upgrading old aggregates.</li>
 <li>dropping aggregates.</li>
 </ul>
-<p>Looks more convenient having few aggregate, in a development and prototyping stage.</p>
-<p>This will simplify testing, prototyping, building the application service layer.</p>
+<p>It looks more convenient having few aggregate, in a development and prototyping stage because this will simplify testing, prototyping, building the application service layer.
+Consider that having everithing in a single aggregate would mean that the application service layer will be able to handle all the models with few lines of code (just building single command for the repository)</p>
 <p>However, at a later stage, a proper refactoring is probably needed by moving models to different aggregates or creating new aggregates for performance reasons.</p>
 <p>Refactoring aggregates in that sense means leaving the application service layer behavior unchanged.</p>
 <p>The steps that may be followed are:</p>
@@ -161,7 +161,7 @@
 <li>defining new aggregates and eventually create upgraded version of current aggregates</li>
 <li>moving models ownership from old aggregates to new aggregates (or to updated versions of the same aggregates which is the same)</li>
 <li>creating an upgraded version of the application service layer using the new set of aggregates</li>
-<li>applyng the equivalent tests of the previous service layer to the new one.</li>
+<li>applying the equivalent tests of the previous service layer to the new one.</li>
 </ul>
 <p>About this latest point, a parametric testing strategy is also possible.</p>
 <p>Here is anexample of a list of tuples of multiple application version configuration with migration function.</p>
