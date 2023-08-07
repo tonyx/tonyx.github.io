@@ -1,6 +1,6 @@
 # Events
 
-Events are associated to the members of the aggregate that virtually change the state of the aggregate.  They are defined as Discriminated Union (Du) type. 
+Events are associated to the members of the aggregate that virtually change the state of the aggregate (i.e. doing virtual add/update/delete on their models).  They are defined as Discriminated Union (Du) type. 
 
 The abstract definition of an Event is: 
 
@@ -24,9 +24,9 @@ Example of implementation relate to the TodoAggregate: add and remove:
                         x.RemoveTodo g
 
 ```
-This shows that processing an event means calling its related aggregate member.
+This shows that processing an event means calling the related aggregate member.
 
-It is possible to cache events by enabling them explicitly at a library level: [project file](Micro_ES_FSharp_Lib/Micro_ES_FSharp_Lib.fsproj):
+you can cache events by enabling them explicitly at a library level: [project file](Micro_ES_FSharp_Lib/Micro_ES_FSharp_Lib.fsproj):
 
 ```Fsharp
     type TodoEvent =
@@ -41,7 +41,9 @@ It is possible to cache events by enabling them explicitly at a library level: [
                         EventCache<TodosAggregate>.Instance.Memoize (fun () -> x.RemoveTodo g) (x, [TodoRemoved t]) 
 ```
 
-Event Caching is disabled by default. See "EVENTS_CACHING_ENABLED" in the project file: [project file](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/Sharpino.Lib.fsproj)
+Caching events does not show so much improvement so far.
+
+Therefore event Caching is disabled by default. See "EVENTS_CACHING_ENABLED" in the project file: [project file](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/Sharpino.Lib.fsproj)
  To enabled the caching of events, the library must be compiled with the following compilation symbol: `EVENTS_CACHING_ENABLED`.
 
 Source:  [Events.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Events.fs)

@@ -170,8 +170,10 @@
             return result
         }
 </code></pre>
-<p>This function use the storage to retrieve a triple of the snapshotId, the related eventId and the snapshot itself, serialized as json.</p>
-<p>To get the current state of an aggregate we need to get the last snapshot and the events that are after the snapshot:</p>
+<p>This function use the storage to retrieve a triple of the snapshotId, the related eventId and the snapshot itself, serialized as json.
+Note that the snapshot may be cached in memory, so that the deserialization is done only once.</p>
+<p>To get the current state of an aggregate we need to get the last snapshot and the events that are after the snapshot.</p>
+<p>Here is an older version of how to get the state:</p>
 <pre><code class="language-Fsharp">    let inline getState&lt;'A, 'E
         when 'A: (static member Zero: 'A)
         and 'A: (static member StorageName: string)
@@ -204,6 +206,48 @@
             return (lastEventId, result)
         }
 </code></pre>
+<p>Now I am showing how it is working in a way that the current state can also be cached.</p>
+<pre><code class="language-FSharp">    let inline getState&lt;'A, 'E
+        when 'A: (static member Zero: 'A)
+        and 'A: (static member StorageName: string)
+        and 'A: (static member Version: string)
+        and 'E :&gt; Event&lt;'A&gt;&gt;(storage: IStorage) = 
+
+        let snapIdStateAndEvents()  =
+            async {
+                return
+                    ResultCE.result {
+                        let! (id, state) = getLastSnapshot&lt;'A&gt; storage
+                        let events = storage.GetEventsAfterId 'A.Version id 'A.StorageName
+                        let result =
+                            (id, state, events)
+                        return result
+                    }
+            }
+            |&gt; Async.RunSynchronously
+
+        let eventuallyFromCache = 
+            fun () -&gt;
+                ResultCE.result {
+                    let! (lastSnapshotId, state, events) = snapIdStateAndEvents()
+                    let lastEventId =
+                        match events.Length with
+                        | x when x &gt; 0 -&gt; events |&gt; List.last |&gt; fst
+                        | _ -&gt; lastSnapshotId 
+                    let! events' =
+                        events |&gt;&gt; snd |&gt; catchErrors deserialize&lt;'E&gt;
+                    let! result =
+                        events' |&gt; evolve&lt;'A, 'E&gt; state
+                    return (lastEventId, result)
+                }
+        let lastEventId = 
+            async {
+                return storage.TryGetLastEventId 'A.Version 'A.StorageName |&gt; Option.defaultValue 0
+            } 
+            |&gt; Async.RunSynchronously
+        StateCache&lt;'A&gt;.Instance.Memoize (fun () -&gt; eventuallyFromCache()) (lastEventId, 'A.StorageName)
+</code></pre>
+<p>In the above code, the state is function of the event stream, and so we can use this eventId as the key of a cache that stores the state of the aggregate.</p>
 <p>Note that here the evolve function is used, which is part of the core library and is defined as follows:</p>
 <pre><code class="language-Fsharp">    let inline evolve&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; (h: 'A) (events: List&lt;'E&gt;) =
         events

@@ -1,6 +1,6 @@
 # Commands
 
-Commands are based on DU types and, when executed, will produce lists of events or error.
+Commands are based on Discriminated Union types and, when executed, will produce lists of events or error.
 The abstract definitions of Command and Undoer (see later) are:
 
 ```FSharp
@@ -57,11 +57,11 @@ Commands return events in a list, so they can return multiple events, as follows
 
 ```
 Any command must ensure that it returns some events only if those events, when applied to the current aggregate state, will return an Ok result (and no error). 
-Commands can use event caching if it is enabled.
+Commands can use event caching if it is enabled as we have seen in the previous section.
 
 ## Undoer
 
-A command may have associated an _undoer_ which is similar to a command but it is aimedo to  compensate the effect of a command in case such command is a part of a transaction that fails. We need the _undoer_ only if the storage lack of multiple streams transactions.
+A command may have associated an _undoer_ which is similar to a command but it is aimedo to compensate the effect of a command in case such command is a part of a multiple stream transaction that fails. We need the _undoer_ only if the storage lack of multiple streams transactions (which is the case of EventStoreDb)
 
 ```FSharp
     type Undoer<'A, 'E when 'E :> Event<'A>> = 'A -> Result<List<'E>, string>
@@ -69,7 +69,8 @@ A command may have associated an _undoer_ which is similar to a command but it i
 
 
 I use the Undoer in the experimental "LightRepository" and EventStoreBridge.
-So, as a recap: ordinary repository that uses only in memory or Postgres storage will not need the undoer because in memory and postgres storage support multiple stream transactions.
+So, as a recap: when the repository uses only in memory or Postgres storage, it has no need of any undoer because in memory and postgres storage support multiple stream transactions.
+If you will use EventStoreDb as storage, you will need to provide an undoer for each command that is part of a multiple stream transaction.
 
 Before giving an example of undoer let me rewrite the abstract definition of a command.
 
@@ -79,18 +80,18 @@ Before giving an example of undoer let me rewrite the abstract definition of a c
         abstract member Undoer: Option<'A -> Result<Undoer<'A, 'E>, string>>
 ```
 
-The optional member Undoer of a command, given the current state of the aggregate, returns a function that applied to the states returns an undoer.
-Then the undoer is ready to be executed and can  return a list of events that can compensate the effect of the command.
+This is the how the Undoer of a command works:  given the current state of the aggregate, it returns a function that applied to the states actually returns an undoer.
+In this way the undoer is ready to be executed and can return a list of events that can compensate the effect of the command.
 
-In the following example I try to explain why the undoer needs to work in two shots: at first it taks as parameter the state of the aggregate before any operation involving it in a transaction returning a new function to be executed eventually later.
-If the transaction fails then the function returned can be applied to reverse the effect of the already executed command.
+So the undoers works in two shots: one to build a context for the eventual future undo, and one to atually do the "undo". 
 
+Here is an example:
 
 The removeTag command returns a list of TagRemoved events. When they are executed they will remove the tag from the aggregate state.
 
-In a transaction context if you want to reverse the effect of the removeTag command you need to readd the tag to the aggregate state. For this reason you need to build a context before the removal.
+In a transaction context if you want to be ready to eventually reverse the effect of the removeTag command you need to readd the tag to the aggregate state. For this reason you need to build a context before the removal so that the tag to be readded is actually available.
 
-This is the example of the undoer for the tags:
+From the code perspective:
 
 ```Fsharp
     member this.Undoer = 

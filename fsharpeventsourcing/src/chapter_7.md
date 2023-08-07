@@ -1,7 +1,9 @@
 # Storage
 A storage stores and retrieves events and snapshots about any aggregate.
 
-Storage must ensure transactionality particularly in special cases like when adding events related to multiple aggregates.
+In a strict way storage ensures transactionality particularly in special cases like when adding events related to multiple aggregates.
+
+In a general sense there is the possibility of supporting storages that don't allow transactionality, and that is the case of the _EventStoreBridge_ (or, in future, Kafa etc..)
 
 Here the abstract definition of members required for a storage:
 
