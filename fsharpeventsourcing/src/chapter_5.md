@@ -16,9 +16,9 @@ Here is one of the simplest example of an entry for a services involving a singl
         }
 ```
 
-The service layer sends commands to the repository so that it can produce and store related events.
+The service layer sends commands to the repository so that this one can run it producing and storing the related events.
 
-The following example shows a service function that uses two aggregates and an explicit lock (note that the lock object concept to handle transaction has been substituted by a mailboxprocessor based actor model. Still I'm not sure if the lock object approach deserved to be dismissed).
+The following example shows a service layer that uses two aggregates and an explicit lock (note that the lock object concept to handle transaction has been substituted by a mailboxprocessor based actor model. Still I'm not sure if the lock object approach deserved to be dismissed).
 
 I will show an example involving the new version right after this one.
 
@@ -75,13 +75,13 @@ Now I am showing how I decided to deal with the same issue of making the code sa
 
 The entire expression is wrapped in an async block and the processor.PostAndReply function is used to send the function f to the processor and wait for the result.
 
-This approach is extremely simple and effective but may slow down the processing of commands if the aggregate is involved in a long running transaction.
+This approach is effective because ensure single thread processing but may slow down the processing of commands if the aggregate is involved in a long running transaction.
 
-In some cases we may rather try to reuse explicit locks, in some cases it could be more convenient to use the mailboxprocessor and in other cases we may not use any lock at all!
+In some cases we may rather try to go back to explicit locks, in some cases it could be more convenient to use the mailboxprocessor and in other cases we may not use any sync mechanism at all!
 
-Consider for example the addTodo: if run it without any locking and without any single thread mailboxprocessor based action, then you may end up to an inconsistent state: you may store an event that is actually invalid (because the todo contains an invalid tag, or the todo is duplicated).
-In that case the event is stored by given that it is inconsistent, it will be ignored when the aggregate will be rebuilt.
-This process can be simply described as "no lock = optimistic lock".
+If the problem is that the order is not preserved the fact that two "todoAdded" events are stored in a different order than how they are produced nobody cares. are actually.
+
+At worst the event stored will be inconsistent and skipped by the "evolve". So the "no lock" solution is a sort of optimistic locking that works in many cases. 
 
 Another example is the following, about sending commands to more aggregates.
 This code removes the tag with any reference to it. It build two commands and make the repository process them at the same tim.

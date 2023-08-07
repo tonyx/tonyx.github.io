@@ -1,7 +1,7 @@
 # Events
 
-As I said before, some members of an aggregate act as "state changer", operating add/update/delete on one or more of its models. Those members have a 1 to 1 correspondence with the cases associated to the event type of that aggregate. 
-In essence each aggregate has an associated Event type and such event type is a Discriminated Union (Du) type with a case associated to "state changer" members of the aggregate.
+As I said before, some members of an aggregate act as "state changer", operating add/update/delete on one or more of its models. 
+Each aggregate has an associated Event type and such event type is a Discriminated Union (Du) type with a case associated to "state changer" members of the aggregate.
 
 An event type can be defined, in abstract, as something that, when processed, return a new state of the aggregate or an error, which fits the following definition:
 
@@ -28,7 +28,7 @@ This is an example of a concrete implementation ov event relate to the TodoAggre
 ```
 This shows that processing an event means calling the related aggregate member.
 
-You can cache events by wrapping the call to the specific aggregate member in a lambda expression without evaluating it, and passing it to a specific cache manager that may eventually evaluate it and return the result or the cached result if the event has already been processed.
+You can do event caching by wrapping the call to the specific aggregate member in a lambda expression without evaluating it, and passing it to a specific cache manager that may eventually evaluate it and return the result or the cached result if the event has already been processed.
 
 ```Fsharp
     type TodoEvent =

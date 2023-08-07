@@ -1,8 +1,9 @@
 # Models
 
-In Sharpino models are collections of entities.
-Usually a model contains references to elements of other models only indirectly, by using their unique identifiers (id) as a reference.
-However there can be exceptions for models that are are closely related: for instance you may rather define a model for orders and a model for orderitems in the same place, so that orders will be able to contain direct reference to orderitems instead of their ids.
+In Sharpino the models are collections of entities.
+The general case is that a model contains has no direct reference to any other model but may reference them by their id. So for instance a todo may contain a list of tag ids and a list of category ids.
+This is the general case because it is the most flexible one: you can change the model without any need to change the other models
+However there can be exceptions for models that are are closely related: for instance you may rather define a model for orders and a model for orderitems in the same place, so that any orders can contain direct reference to orderitems instead of id of orderitems.
 
 Here there is a simple model of the todo items:
 
@@ -25,9 +26,10 @@ Here there is a simple model of the todo items:
                 }
 ```
 
-You've seen a special "Zero" static member. It is important, and also mandatory, for an aggregate to define a _Zero_ static member and so it will use the zero member of any model as well.
-
+You've seen a special "Zero" static member. The aggregate will use it to define its own _Zero_ static member that is mandatory for any aggregate.
+The _Zero_ static member is the initial state of the aggregate and it is used to rebuild the state of the aggregate when there are no events stored for that aggregate.
 Note that in some popular full stack development FSharp technologies some definitions must stay in a separate project shared beteen the client and the server separate projects.
+In that case we would define the "Todo", the "Tag" and the "Category" types in a shared project.
 (See Fable remoting for more informations about that).
 
 Source: [TodosModel.fs](https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/models/TodosModel.fs)

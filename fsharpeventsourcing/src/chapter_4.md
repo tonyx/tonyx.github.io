@@ -1,7 +1,7 @@
 # Commands
 
-There is a concrete implementation of command for each aggregate.
-For each aggregate, i define its own Commands type as a Discriminated Union type. When the command is and, it will returnlo a lists of events or an error.
+We define a command type for each aggregate.
+A Command type is a Discriminated Union. Executing the command means returning a lists of events or an error.
 We have also _"command undoers"_, that allow us to compensate the effect of a command in case it is part of a multiple stream transaction that fails  as we will see later.
 
 The abstract definitions of Command and Undoer  are:
@@ -38,7 +38,7 @@ Example:
             member this.Undoer = None
 ```
 
-It is possible, althought uncommon, to define for commands cases that can return multiple events as follows:
+It is possible, althought uncommon, to have, for a command, cases that can return multiple events as follows:
 
 ```FSharp
     type TodoCommand =
@@ -59,10 +59,10 @@ It is possible, althought uncommon, to define for commands cases that can return
             member this.Undoer
 
 ```
-It is important that any command must ensure that it will return Ok (and therefore, one or more events) only if when those events are processed with the current aggregate state, an Ok result, i.e. a valid aggregate state (and no error). 
+It is important that any command must ensure that it will return Ok (and therefore, one or more events) only if when those events to be returned, when processed with the current aggregate state, give an Ok result, i.e. a valid aggregate state (and no error). 
 For that reason, before returning the events, I invoked the "evolveUNforgivingErrors" function to "probe" the sequence of two events to be eventually returned. 
 The evolveUNforgivingErrors processes some events to a given state of the aggregate returning an error or a valid state.
-There is also a similar function _evolve_ which is more tollerant and will just skip events that, when processed gives error, and can return a valid aggregate state anyway.
+There is also a similar function _evolve_ which is more tollerant and will just skip events that, when processed gives error, and can return a valid aggregate state anyway. 
 
 Commands can use event caching if it is enabled as we have seen in the previous section.
 

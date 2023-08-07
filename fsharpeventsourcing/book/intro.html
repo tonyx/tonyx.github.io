@@ -149,13 +149,12 @@
 It is a project for study and for experimenting.
 At the moment (2023-08-06) it supports <em>in memory</em> and <em>postgres</em> storages.
 There is also an experimental support for eventstoredb.</p>
-<p>Here I am giving a quick overview to how it works, how the sample application works (from models to application service layer and without any user interface) and my proposal about the issues of refactoring aggregates (migrating to a different configuration of aggregates).</p>
+<p>Here I am giving a quick overview to how it works, how the sample application works (from models to application service layer and without any user interface) and how to handle aggregate refactoring.</p>
 <h2 id="the-sample-application"><a class="header" href="#the-sample-application">The sample application</a></h2>
 <p>The sample application is a simple todo list manager where each todo contains reference to Tags and Categories.
-The aggregates manage those categories, todos and tag models.
-Particularly the &quot;version 1&quot; of the saple application has an Aggregate managing Todo and Categories, and another aggregate managing Tags.
-I will show a strategy for handling the following aggregate refactoring problem: how to migrate from an aggregate configuration to another one.</p>
-<p>Particularly there in the &quot;version 2&quot; of the application there are three different aggregates: one for the Todo model, one for the Categories model, and another one from the Tags model.</p>
+There are two version of the same application that use different aggregate configurations.</p>
+<p>The &quot;version 1&quot; has an Aggregate managing Todo and Categories, and another aggregate managing Tags.</p>
+<p>The &quot;version 2&quot; of the application consists in three different aggregates: one for the Todo model, one for the Categories model, and another one for the Tags model.</p>
 <p>The challenge is that you can write parametric tests that can be executed against the current and the next aggregate configuration, also by testing the migration function.</p>
 
                     </main>

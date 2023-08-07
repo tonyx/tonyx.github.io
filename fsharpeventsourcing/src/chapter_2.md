@@ -1,8 +1,8 @@
 # Aggregates
 
-An aggregate is an instance of a class (or more properly, a record) that handles one or more models. We will be able to recreate the state of the aggregate by processing the stored events by a fundamental function called _evolve_. Such   _events_ are closely related to some of the members of the aggregate. 
+An aggregate is an instance of a class (or more properly, a record) that handles one or more models. We will be able to recreate the state of the aggregate by processing the stored events by an essential function called _evolve_. Such   _events_ are closely related to some of the members of the aggregate. 
 
-Given that the state of the aggregatre is a function of the related events present in the storage, an aggregate needs the following, mandatory, static members:
+Given that the state of the aggregatre is a function of the related events processed and stored, an aggregate needs the following information associated that I defined as mandatory, static members:
 
 - __Zero__: the instance of the aggregate in its intitial state. 
 It is needed to be able to provide the state of the aggregate when there is no event stored related to that aggregate.
@@ -57,6 +57,6 @@ Example:
                     }
             }
 ```
-Recap: invariant conditions related to models that are part of the same aggregate can be preserved without the need of any explicit transaction, because at that level there is no awareness of the storage. Anyway, we can still preserve other invariant conditions that may involve models residing in different aggregates at the service application layer (see in next sections).
+Recap: we can protect invariant conditions related to models that are part of the same aggregate without the need of any explicit transaction, because at that level there is no awareness of the storage. Still, we can protect other invariant conditions that may involve models residing in different aggregates anyway in a different way:  at the service application layer (see in next sections).
 
 Source: [TodosAggregate.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Aggregate.fs)
