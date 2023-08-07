@@ -145,8 +145,8 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="aggregates"><a class="header" href="#aggregates">Aggregates</a></h1>
-<p>An aggregate is an instance of a class (or more properly, a record) that handles one or more models. We will be able to recreate the state of the aggregate by processing the stored events by a fundamental function called <em>evolve</em>. Such   <em>events</em> are closely related to some of the members of the aggregate. </p>
-<p>Given that the state of the aggregatre is a function of the related events present in the storage, an aggregate needs the following, mandatory, static members:</p>
+<p>An aggregate is an instance of a class (or more properly, a record) that handles one or more models. We will be able to recreate the state of the aggregate by processing the stored events by an essential function called <em>evolve</em>. Such   <em>events</em> are closely related to some of the members of the aggregate. </p>
+<p>Given that the state of the aggregatre is a function of the related events processed and stored, an aggregate needs the following information associated that I defined as mandatory, static members:</p>
 <ul>
 <li>
 <p><strong>Zero</strong>: the instance of the aggregate in its intitial state. 
@@ -205,7 +205,7 @@ It uses the &quot;result&quot; computational expression included in the FsToolki
                     }
             }
 </code></pre>
-<p>Recap: invariant conditions related to models that are part of the same aggregate can be preserved without the need of any explicit transaction, because at that level there is no awareness of the storage. Anyway, we can still preserve other invariant conditions that may involve models residing in different aggregates at the service application layer (see in next sections).</p>
+<p>Recap: we can protect invariant conditions related to models that are part of the same aggregate without the need of any explicit transaction, because at that level there is no awareness of the storage. Still, we can protect other invariant conditions that may involve models residing in different aggregates anyway in a different way:  at the service application layer (see in next sections).</p>
 <p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Aggregate.fs">TodosAggregate.fs</a></p>
 
                     </main>
