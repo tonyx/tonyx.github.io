@@ -148,19 +148,18 @@
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
 <p><a href="https://github.com/tonyx/Micro_ES_FSharp_Lib">Sharpino</a> is a simple F# event sourcing library. NET Core.
 It is a project for study and for experimenting.
-At the moment (2023-08-06) it supports in memory and postgres storage for events and snapshots.
+At the moment (2023-08-06) it supports <em>in memory</em> and <em>postgres</em> storages.
 There is also an experimental support for eventstoredb.</p>
-<p>In this document I am giving a quick  overview to how it works, the sample application (only api for any client, no user intrface) and how I faced the issues of refactoring aggregates (migrating to a different configuration of aggregates).</p>
+<p>Here I am giving a quick overview to how it works, the sample application (from models to application service layer and without any user interface) and my proposal about the issues of refactoring aggregates (migrating to a different configuration of aggregates).</p>
 <h2 id="the-sample-application"><a class="header" href="#the-sample-application">The sample application</a></h2>
-<p>Of course the sample application stops at the level of application service layer, without any real user interface.
-The sample application is a simple todo list manager where each todo contains reference to Tags and Categories.
+<p>The sample application is a simple todo list manager where each todo contains reference to Tags and Categories.
 Tags, categories and todos are models that are managed by aggregates.
-I will show a strategy for testing  a specific aggregate refactoring problem:   how to migrate from an  aggregate configuration to another one. Particularly there is the version 1 of the application where we have an aggregate for Todos and Categories, and another aggregate for Tags. The refactoring consist on the migration in a configuraion where we have three different aggregates: Todos, Categories and Tags.
+I will show a strategy for handling the following aggregate refactoring problem:  how to migrate from an aggregate configuration to another one. Particularly there is the version 1 of the application where we have an aggregate for Todos and Categories, and another aggregate for Tags. The refactoring consist on the migration in a configuraion where we have three different aggregates: Todos, Categories and Tags.
 The challenge is that you can write parametric tests that can be executed against any aggregate configuration.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="models"><a class="header" href="#models">Models</a></h1>
 <p>In Sharpino models are collections of entities.
 Usually a model contains references to elements of other models only indirectly, for example by including their ids.
-However there can be exceptions when some models are closely related: for instance you may find convenient to define a model for orders and define a model for orderitems in the same place, so that orders will be able to contain direct reference to orderitems instead of referencing them by their ids.</p>
+However there can be exceptions when some models are closely related: for instance you may find convenient to define a model for orders and a model for orderitems in the same place, so that orders will be able to contain direct reference to orderitems instead of their ids.</p>
 <p>A Simple model for todo items:</p>
 <pre><code class="language-FSharp">    type Todo =
         {
@@ -179,10 +178,10 @@ However there can be exceptions when some models are closely related: for instan
                     todos = []
                 }
 </code></pre>
-<p>As I will hopefully show in future documents, in an application using technologies where entities definition must be shared between client and server, like inf Fable Remoting, the definition of the single entities of models must stai in a shared project, available to the client (Fable/Elmish) and to the server. So the &quot;Todo type&quot; will need to be in a shared project.</p>
+<p>Note that in an application using technologies where entities definition must be shared between client and server, like Fable Remoting, the definition of the single entities of models must stay in a shared project, available to the client (Fable/Elmish) and to the server as well. So the &quot;Todo type&quot; definition will need to be in a shared project.</p>
 <p>Source: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/models/TodosModel.fs">TodosModel.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="aggregates"><a class="header" href="#aggregates">Aggregates</a></h1>
-<p>An aggregate is a class that contains and handle one or more models. We will be able to access to the state of the aggregate by processing the stored events where the definitions of such events are closely related to members of the aggregate. </p>
+<p>An aggregate is an instance of a record that contains and handle one or more models. We will be able to recreate the state of the aggregate by processing the stored events. The definitions of such events are closely related to some members of the aggregate. </p>
 <p>Given that the state of the aggregatre is a function of the related events present in the storage, an aggregate must define the following static members:</p>
 <ul>
 <li>
@@ -220,7 +219,7 @@ It is needed to initialize the aggregate when no events are present in the stora
         static member SnapshotsInterval =
             15
 </code></pre>
-<p>Some members of the aggregate that are meant to do action on it changing (virtually) its state (i.e. they return the aggregate in a new state or an error). It atually means that such members will virtually change some models (add/upate/delete). Those members will be associated to specific events data structure (see next section).
+<p>Some members of the aggregate virtually changge  its state (i.e. they return the aggregate in a new state or an error). It atually means that such members will do add/upate/delete on their model (still in a functional way). Those members will be associated to specific definition of <em>events</em> (see next section).
 In the following example the aggregate of the todos manages also the categories model and so it provides check related to categories before adding a todo (you can add only todo with categoryIds related to existing categories).
 It uses a computational expression included in the FsToolkit.ErrorHandling library to manage errors in a <em>railway oriented programming</em> style.</p>
 <p>Example:</p>
@@ -241,15 +240,16 @@ It uses a computational expression included in the FsToolkit.ErrorHandling libra
                     }
             }
 </code></pre>
-<p>Recap: invariant conditions related to models residing in the same aggregate can be preserved without the need of explicit transaction, because at that level there is no awareness of the storage. Invariant conditions involving models residing in different aggregates must be preserved at the application layer level (see the next sections).</p>
+<p>Recap: invariant conditions related to models residing in the same aggregate can be preserved without the need of explicit transaction, because at that level there is no awareness of the storage. Invariant conditions involving models residing in different aggregates could be preserved at the application layer level (see the next sections).</p>
 <p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Aggregate.fs">TodosAggregate.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="events"><a class="header" href="#events">Events</a></h1>
-<p>Events are associated to the members of the aggregate that virtually change the state of the aggregate (i.e. doing virtual add/update/delete on their models).  They are defined as Discriminated Union (Du) type. </p>
+<p>Events are associated to the members of the aggregate that virtually change the state of the aggregate (i.e. operates  add/update/delete on their models).  They are defined as Discriminated Union (Du) type. </p>
 <p>The abstract definition of an Event is: </p>
 <pre><code class="language-FSharp">    type Event&lt;'A&gt; =
         abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
 </code></pre>
-<p>Example of implementation relate to the TodoAggregate: add and remove:</p>
+<p>The <em>'A</em> is the generic aggregate type the event is associated to.</p>
+<p>Example of implementation relate to the TodoAggregate members <em>Add</em> and <em>Remove</em>:</p>
 <pre><code class="language-Fsharp">    type TodoEvent =
         | TodoAdded of Todo
         | TodoRemoved of Guid
@@ -263,7 +263,7 @@ It uses a computational expression included in the FsToolkit.ErrorHandling libra
 
 </code></pre>
 <p>This shows that processing an event means calling the related aggregate member.</p>
-<p>you can cache events by enabling them explicitly at a library level: <a href="Micro_ES_FSharp_Lib/Micro_ES_FSharp_Lib.fsproj">project file</a>:</p>
+<p>You can cache events by wrapping the member in a lambda expression and passing it to a specific cache manager. </p>
 <pre><code class="language-Fsharp">    type TodoEvent =
         | TodoAdded of Todo
         | TodoRemoved of Guid
@@ -275,12 +275,13 @@ It uses a computational expression included in the FsToolkit.ErrorHandling libra
                     | TodoRemoved (g: Guid) -&gt; 
                         EventCache&lt;TodosAggregate&gt;.Instance.Memoize (fun () -&gt; x.RemoveTodo g) (x, [TodoRemoved t]) 
 </code></pre>
-<p>Caching events does not show so much improvement so far.</p>
+<p>However, caching events does not show so much improvement so far. Looks more promising the caching of the state of the aggregate (see the next section).</p>
 <p>Therefore event Caching is disabled by default. See &quot;EVENTS_CACHING_ENABLED&quot; in the project file: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/Sharpino.Lib.fsproj">project file</a>
 To enabled the caching of events, the library must be compiled with the following compilation symbol: <code>EVENTS_CACHING_ENABLED</code>.</p>
 <p>Source:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Events.fs">Events.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
-<p>Any commands is defined as a Discriminated Union type and, when executed, will produce a lists of events or an error.
+<p>There is a command definition for each aggregate.
+Any commands is defined as a Discriminated Union type and, when executed, will produce a lists of events or an error.
 The abstract definitions of Command and Undoer (see later) are:</p>
 <pre><code class="language-FSharp">
     type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
@@ -321,17 +322,18 @@ The abstract definitions of Command and Undoer (see later) are:</p>
                 let evolved =
                     fun () -&gt;
                     [TodoEvent.TodoAdded t1; TodoEvent.TodoAdded t2]
-                    |&gt; evolve x
+                    |&gt; evolveUNforgivingErrors x
                 match evolved() with
                     | Ok _ -&gt; [TodoEvent.TodoAdded t1; TodoEvent.TodoAdded t2] |&gt; Ok
                     | Error x -&gt; x |&gt; Error
             member this.Undoer
 
 </code></pre>
-<p>Any command must ensure that it returns some events only if those events, when applied to the current aggregate state, will return an Ok result (and no error). 
+<p>It is important that any command must ensure that it returns some events only if those events, when applied to the current aggregate state, will return an Ok result (and no error). 
+For that reason before returning the events, I invoked the &quot;evolveUNforgivingErrors&quot; function to probe the sequence of two events to be eventually returned. the evolveUNforgivingErrors applies the events to the current state and will return an error only if the result is an error.
 Commands can use event caching if it is enabled as we have seen in the previous section.</p>
 <h2 id="undoer"><a class="header" href="#undoer">Undoer</a></h2>
-<p>A command may have associated an <em>undoer</em> which is similar to a command but it is aimedo to eventually compensate the effect of a command in case such command is a part of a multiple stream transaction that fails. We need the <em>undoer</em> only if the storage lack of multiple streams transactions (which is the case of EventStoreDb)</p>
+<p>A command may have associated an <em>undoer</em> which is similar to a command itself but it is aimedo to eventually to the &quot;reverse&quot; of a command, which means  compensating the effect of a command in case such command is a part of a multiple stream transaction that fails. We need the <em>undoer</em> only if the storage lack of multiple streams transactions (which is the case of EventStoreDb)</p>
 <pre><code class="language-FSharp">    type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
 </code></pre>
 <p>I use the Undoer in the experimental &quot;LightRepository&quot; and EventStoreBridge.</p>
@@ -345,7 +347,7 @@ If you will use EventStoreDb as storage, you may want to provide an undoer for e
 <p>The command provide an optional Undoer which is a function that returns an actual undoer.
 This how this works: given the current state of the aggregate, the &quot;command undoer&quot; returns a function that applied to the states actually returns an actual undoer.
 So in the undoer is ready to be executed and can return a list of events that can compensate the effect of the command.</p>
-<p>So the undoers works in two shots: one to build a context for the eventual future undo, and one to atually... <em>do the &quot;undo&quot;!</em>. </p>
+<p>So the undoers works in two shots: one to build a context for the eventual future undo, and one to atually... <em>do</em> the <em>undo!</em>. </p>
 <p>Here is an example of why this apparent overcomplication is needed:</p>
 <p>The removeTag command returns a list of TagRemoved events. When those events are processed the result is the aggregate without the tags.</p>
 <p>In a transaction context if you want to be ready to eventually reverse the effect of the removeTag command you need to readd the tag to the aggregate state. For this reason you need to build a context before the removal so that the tag to be readded is actually available.</p>
@@ -384,7 +386,7 @@ So in the undoer is ready to be executed and can return a list of events that ca
 <p>An application service layer provides services that actually uses Respository and Storage to get the state and/or send commands to one or more aggregates eventyally in a coordinated (i.e. transactional) way.</p>
 <p>Here is one of the simplest example of an entry for a services involving a single aggregate, by builing and running a AddTag command.</p>
 <pre><code class="language-FSharp">    member this.addTag tag =
-        ResultCE.result {
+        result {
             let! _ =
                 tag
                 |&gt; AddTag
