@@ -3,7 +3,7 @@ The repository has the responsibility of:
 - getting the state of an aggregate
 - trying to run commands passed, and eventually storing the related events returned by the command.
 - making periodic snapshots, according to the SnapshotsInterval parameter of the aggregate.
-(remember that snapshots are explicitly used only in the Postgres and InMemory storage implementations)
+(remember that snapshots are explicitly used only in the Postgres and in-memory storage implementations)
 
 Here is an example of the private member that retrieves the last snapshot:
 
@@ -26,7 +26,7 @@ Here is an example of the private member that retrieves the last snapshot:
             return result
         }
 ```
-This function uses the storage to retrieve a triple of the snapshotId, the related eventId and the snapshot itself, serialized as json.
+This function uses the storage to retrieve a triple of the snapshot-Id, the related eventId and the snapshot itself, serialized as json.
 Note that the snapshot may be cached in memory so that the deserialization is done only once.
 
 To get the current state of an aggregate we need to get the last snapshot and the events that are after the snapshot.
@@ -67,7 +67,7 @@ Here is an older version of how to get the state:
         }
 ```
 
-Now I show the current implementation that enables the aggregate-state caching:
+Now I show the current implementation that enables aggregate-state caching:
 
 ```FSharp
     let inline getState<'A, 'E

@@ -153,7 +153,7 @@
 It is needed to be able to provide the state of the aggregate when there is no event stored related to that aggregate.</p>
 </li>
 <li>
-<p><strong>StorageName</strong> and  <strong>Version</strong>: this combination uniquely identifies the aggragate and lets the storage know in which stream to store events and snapshots.</p>
+<p><strong>StorageName</strong> and  <strong>Version</strong>: this combination uniquely identifies the aggregate and lets the storage know in which stream to store events and snapshots.</p>
 </li>
 <li>
 <ul>
@@ -184,9 +184,9 @@ At the moment I have no specific strategy for handling snapshots and intervals b
         static member SnapshotsInterval =
             15
 </code></pre>
-<p>Some members of the aggregate virtually change the state of the aggregate in the sense that they return an instance of the aggregate in a different state or an error. It actually means that such members will <em>add/update/delete</em> to some of their models (still in a functional/immutable way i.e. returning the model with changes). Those members will be associated with aggregate <em>events</em> (see next section).
-In the following example, the aggregate of the Todos manages also the categories model and so it can check the validity of the categories referenced by a todo before adding it (to preserve the rule that you can add only todo with categoryIds related to existing categories).
-It uses the &quot;result&quot; computational expression included in the FsToolkit.ErrorHandling library supports the possibility to handle errors in a <em>railway oriented programming</em> style.</p>
+<p>Some members of the aggregate virtually change the state of the aggregate in the sense that they return an instance of the aggregate in a different state or an error. It actually means that such members will <em>add/update/delete</em>  some of their models (still in a functional/immutable way i.e. returning the model with changes). Those members will be associated with aggregate <em>events</em> (see next section).
+In the following example, the aggregate of the Todos manages also the categories model and so it can check the validity of the categories referenced by a todo before adding it (to preserve the rule that you can add only todo with category-Ids related to existing categories).
+It uses the &quot;result&quot; computational expression included in the FsToolkit.ErrorHandling library supports the possibility to handle errors in a <em>railway-oriented programming</em> style.</p>
 <p>Example:</p>
 <pre><code class="language-FSharp">    member this.AddTodo (t: Todo) =
         let checkCategoryExists (c: Guid ) =
@@ -205,7 +205,7 @@ It uses the &quot;result&quot; computational expression included in the FsToolki
                     }
             }
 </code></pre>
-<p>Recap: we can protect invariant conditions related to models that are part of the same aggregate without the need for any explicit transaction, because at that level there is no awareness of the storage. Still, we can protect other invariant conditions that may involve models residing in different aggregates anyway in a different way:  at the service application layer (see in the next sections).</p>
+<p>Recap: we can protect invariant conditions related to models that are part of the same aggregate without the need for any explicit transaction because at that level there is no awareness of the storage. Still, we can protect other invariant conditions that may involve models residing in different aggregates anyway in a different way:  at the service application layer (see in the next sections).</p>
 <p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Aggregate.fs">TodosAggregate.fs</a></p>
 
                     </main>

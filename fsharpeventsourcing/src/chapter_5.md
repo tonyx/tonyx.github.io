@@ -1,6 +1,6 @@
 # Application service layer
 
-An application service layer provides services that actually use Repository and Storage to get the state and/or send commands to one or more aggregates (eventually in an atomic/transactional way with potential issues already discussed).
+An application service layer provides services that use Repository and Storage to get the state and/or send commands to one or more aggregates (eventually in an atomic/transactional way with potential issues already discussed).
 
 Here is one of the simplest examples of an entry for a service involving a single aggregate, by building and running an AddTag command.
 
@@ -75,9 +75,9 @@ Now I am showing how I decided to deal with the same issue of making the code sa
 
 The entire expression is wrapped in an async block and the processor.PostAndReply function is used to send the function f to the processor and wait for the result.
 
-This approach is effective because ensures single thread processing but may slow down the processing of commands if the aggregate is involved in a long-running transaction.
+This approach is effective because ensures single-thread processing but may slow down the processing of commands if the aggregate is involved in a long-running transaction.
 
-In some cases we may rather try to go back to explicit locks, in some cases it could be more convenient to use the mailboxprocessor and in other cases, we may not use any sync mechanism at all!
+In some cases we may rather try to go back to explicit locks, it could be more convenient to use the mailboxprocessor and in other cases, we may not use any sync mechanism at all!
 
 If the problem is that the order is not preserved the fact that two "todoAdded" events are stored in a different order than how they are produced nobody cares. are actually.
 

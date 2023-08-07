@@ -18,7 +18,7 @@ However, at a later stage, proper refactoring is probably needed by moving model
 Refactoring aggregates in that sense means leaving the application service layer behavior unchanged.
 
 The steps that may be followed are:
-- defining new aggregates and eventually creating upgraded version of current aggregates
+- defining new aggregates and eventually creating upgraded versions of current aggregates
 - moving models ownership from old aggregates to new aggregates (or to updated versions of the same aggregates which is the same)
 - creating an upgraded version of the application service layer using the new set of aggregates
 - applying the equivalent tests of the previous service layer to the new one.

@@ -86,13 +86,13 @@ I am going to show an example of an _undoer_. Let me remind the abstract definit
 ```
 
 
-Given the current state of the aggregate, the "command undoer" returns a function that, applied to the aggregate state, must return the actual undoer.
+Given the current state of the aggregate, the "command undoer" returns a function that, applied to the aggregate state, must return the actual _undoer_.
 
 So the undoers work in two shots: one to build a context for the eventual future undo, and one to actually... _do_ the _undo!_. 
 
 __A Concrete example__:
 
-The removeTag command returns a list of TagRemoved events. We know that when those events are processed the result is the aggregate without the tags.
+The _RemoveTag_ command returns a list of TagRemoved events. We know that when those events are processed the result is the aggregate without the tags.
 However, we may want to roll back the effect of those events by adding events that reverse their effect.
 
 This applies to a transaction context: you need to be able to re-add the tag to the aggregate state. For this reason, you need to build a context _before_ the removal so that the tag to be eventually readded is still available.
