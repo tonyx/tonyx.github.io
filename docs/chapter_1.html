@@ -146,9 +146,9 @@
                     <main>
                         <h1 id="models"><a class="header" href="#models">Models</a></h1>
 <p>In Sharpino models are collections of entities.
-Usually a model contains references to elements of other models only indirectly, for example by including their ids.
-However there can be exceptions when some models are closely related: for instance you may find convenient to define a model for orders and a model for orderitems in the same place, so that orders will be able to contain direct reference to orderitems instead of their ids.</p>
-<p>A Simple model for todo items:</p>
+Usually a model contains references to elements of other models only indirectly, by using their id as a reference.
+However there can be exceptions when some models are closely related: for instance you may rather define a model for orders and a model for orderitems in the same place, so that orders will be able to contain direct reference to orderitems instead of their ids.</p>
+<p>A Simple model for the todo items:</p>
 <pre><code class="language-FSharp">    type Todo =
         {
             Id: Guid
@@ -166,7 +166,9 @@ However there can be exceptions when some models are closely related: for instan
                     todos = []
                 }
 </code></pre>
-<p>Note that in an application using technologies where entities definition must be shared between client and server, like Fable Remoting, the definition of the single entities of models must stay in a shared project, available to the client (Fable/Elmish) and to the server as well. So the &quot;Todo type&quot; definition will need to be in a shared project.</p>
+<p>There is a special &quot;Zero&quot; static member that does not matter so much for the model, but it is important for the aggregate (see the next section). Indeed the <em>Zero</em> static member is mandatory for any aggregate.</p>
+<p>Note that in some popular Fsharp technologies some definitions must stay in a separate project whared beteen the client and the server separate projects.
+(See Fable remoting for more informations about that).</p>
 <p>Source: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/models/TodosModel.fs">TodosModel.fs</a></p>
 
                     </main>

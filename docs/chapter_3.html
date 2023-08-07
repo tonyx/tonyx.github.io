@@ -151,7 +151,7 @@
         abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
 </code></pre>
 <p>The <em>'A</em> is the generic aggregate type the event is associated to.</p>
-<p>Example of implementation relate to the TodoAggregate members <em>Add</em> and <em>Remove</em>:</p>
+<p>This is an example of a concrete implementation ov event relate to the TodoAggregate members <em>Add</em> and <em>Remove</em>:</p>
 <pre><code class="language-Fsharp">    type TodoEvent =
         | TodoAdded of Todo
         | TodoRemoved of Guid

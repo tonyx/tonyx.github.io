@@ -145,7 +145,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
-<p>An application service layer provides services that actually uses Respository and Storage to get the state and/or send commands to one or more aggregates eventyally in a coordinated (i.e. transactional) way.</p>
+<p>An application service layer provides services that actually uses Respository and Storage to get the state and/or send commands to one or more aggregates eventyally in an atomic/transactional way.</p>
 <p>Here is one of the simplest example of an entry for a services involving a single aggregate, by builing and running a AddTag command.</p>
 <pre><code class="language-FSharp">    member this.addTag tag =
         result {
