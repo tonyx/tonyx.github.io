@@ -169,13 +169,13 @@ Consider the extreme when we have everything in a single aggregate. It would mea
 <p>Here is an example of a list of tuples of multiple application version configurations with migration functions.</p>
 <pre><code class="language-FSharp">let allVersions =
     [
-        (AppVersions.applicationPostgresStorage,        AppVersions.applicationPostgresStorage,       fun () -&gt; () |&gt; Result.Ok)
-        (AppVersions.applicationShadowPostgresStorage,  AppVersions.applicationShadowPostgresStorage, fun () -&gt; () |&gt; Result.Ok)
-        (AppVersions.applicationPostgresStorage,        AppVersions.applicationShadowPostgresStorage, AppVersions.applicationPostgresStorage._migrator.Value)
+        (applicationPostgresStorage,        applicationPostgresStorage,       fun () -&gt; () |&gt; Result.Ok)
+        (applicationShadowPostgresStorage,  applicationShadowPostgresStorage, fun () -&gt; () |&gt; Result.Ok)
+        (applicationPostgresStorage,        applicationShadowPostgresStorage, applicationPostgresStorage._migrator.Value)
 
-        (AppVersions.applicationMemoryStorage,          AppVersions.applicationMemoryStorage,         fun () -&gt; () |&gt; Result.Ok)
-        (AppVersions.applicationShadowMemoryStorage,    AppVersions.applicationShadowMemoryStorage,   fun () -&gt; () |&gt; Result.Ok)
-        (AppVersions.applicationMemoryStorage,          AppVersions.applicationShadowMemoryStorage,   AppVersions.applicationMemoryStorage._migrator.Value)
+        (applicationMemoryStorage,          applicationMemoryStorage,         fun () -&gt; () |&gt; Result.Ok)
+        (applicationShadowMemoryStorage,    applicationShadowMemoryStorage,   fun () -&gt; () |&gt; Result.Ok)
+        (applicationMemoryStorage,          applicationShadowMemoryStorage,   applicationMemoryStorage._migrator.Value)
     ]
 </code></pre>
 <p>There are specific attributes to distinguish current and &quot;upgrading&quot; versions of elements of the application. </p>

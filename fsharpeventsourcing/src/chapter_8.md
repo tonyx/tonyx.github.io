@@ -30,13 +30,13 @@ Here is an example of a list of tuples of multiple application version configura
 ```FSharp
 let allVersions =
     [
-        (AppVersions.applicationPostgresStorage,        AppVersions.applicationPostgresStorage,       fun () -> () |> Result.Ok)
-        (AppVersions.applicationShadowPostgresStorage,  AppVersions.applicationShadowPostgresStorage, fun () -> () |> Result.Ok)
-        (AppVersions.applicationPostgresStorage,        AppVersions.applicationShadowPostgresStorage, AppVersions.applicationPostgresStorage._migrator.Value)
+        (applicationPostgresStorage,        applicationPostgresStorage,       fun () -> () |> Result.Ok)
+        (applicationShadowPostgresStorage,  applicationShadowPostgresStorage, fun () -> () |> Result.Ok)
+        (applicationPostgresStorage,        applicationShadowPostgresStorage, applicationPostgresStorage._migrator.Value)
 
-        (AppVersions.applicationMemoryStorage,          AppVersions.applicationMemoryStorage,         fun () -> () |> Result.Ok)
-        (AppVersions.applicationShadowMemoryStorage,    AppVersions.applicationShadowMemoryStorage,   fun () -> () |> Result.Ok)
-        (AppVersions.applicationMemoryStorage,          AppVersions.applicationShadowMemoryStorage,   AppVersions.applicationMemoryStorage._migrator.Value)
+        (applicationMemoryStorage,          applicationMemoryStorage,         fun () -> () |> Result.Ok)
+        (applicationShadowMemoryStorage,    applicationShadowMemoryStorage,   fun () -> () |> Result.Ok)
+        (applicationMemoryStorage,          applicationShadowMemoryStorage,   applicationMemoryStorage._migrator.Value)
     ]
 ```
 
