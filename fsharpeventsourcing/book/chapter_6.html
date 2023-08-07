@@ -150,9 +150,9 @@
 <li>getting the state of an aggregate</li>
 <li>trying to run commands passed, and eventually storing the related events returned by the command.</li>
 <li>making periodic snapshots, according to the SnapshotsInterval parameter of the aggregate.
-(remember tht snapshots are explicitly used only in the Postgres and InMemory storage implementations)</li>
+(remember that snapshots are explicitly used only in the Postgres and InMemory storage implementations)</li>
 </ul>
-<p>Here an example of the private member that retrieve the last snapshot:</p>
+<p>Here is an example of the private member that retrieves the last snapshot:</p>
 <pre><code class="language-FSharp">    let inline private getLastSnapshot&lt;'A 
         when 'A: (static member Zero: 'A) 
         and 'A: (static member StorageName: string)
@@ -172,7 +172,7 @@
         }
 </code></pre>
 <p>This function uses the storage to retrieve a triple of the snapshotId, the related eventId and the snapshot itself, serialized as json.
-Note that the snapshot may be cached in memory, so that the deserialization is done only once.</p>
+Note that the snapshot may be cached in memory so that the deserialization is done only once.</p>
 <p>To get the current state of an aggregate we need to get the last snapshot and the events that are after the snapshot.</p>
 <p>Here is an older version of how to get the state:</p>
 <pre><code class="language-Fsharp">    let inline getState&lt;'A, 'E
@@ -207,7 +207,7 @@ Note that the snapshot may be cached in memory, so that the deserialization is d
             return (lastEventId, result)
         }
 </code></pre>
-<p>Now I show the current implementation that enable the aggregate-state caching:</p>
+<p>Now I show the current implementation that enables the aggregate-state caching:</p>
 <pre><code class="language-FSharp">    let inline getState&lt;'A, 'E
         when 'A: (static member Zero: 'A)
         and 'A: (static member StorageName: string)
@@ -248,9 +248,9 @@ Note that the snapshot may be cached in memory, so that the deserialization is d
             |&gt; Async.RunSynchronously
         StateCache&lt;'A&gt;.Instance.Memoize (fun () -&gt; eventuallyFromCache()) (lastEventId, 'A.StorageName)
 </code></pre>
-<p>In the above code, the state is function of event id, and so we can use this eventId as the key of a cache that stores the state of the aggregate.</p>
+<p>In the above code, the state is a function of eventId, and so we can use this eventId as the key of a cache that stores the state of the aggregate.</p>
 <p>Note that here the evolve function is used, which is part of the core library.</p>
-<p>There are actually two similar evolve implementation:</p>
+<p>There are actually two similar evolve implementations:</p>
 <p>the basic implementation of the evolve is the one that cannot forgive any inconsistency in the  events passed as parameters with the current aggregate state:</p>
 <pre><code class="language-Fsharp">    let inline evolveUNforgivingErrors&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; (h: 'A) (events: List&lt;'E&gt;) =
         events
@@ -261,8 +261,8 @@ Note that the snapshot may be cached in memory, so that the deserialization is d
                     | Ok h -&gt; h |&gt; e.Process
             ) (h |&gt; Ok)
 </code></pre>
-<p>The previous version is not used to process stored events because, beside the in memory or postgres storage that are able to preserve consistency of the events stored (i.e. if the event are there then they must be consistent), there is the possibility of inconsistencies in the events that are stored in a general case by using directly the EventStoreDb or a message broker system.</p>
-<p>Here an implementation of the evolve that skip eventual inconsistent events:</p>
+<p>The previous version is not used to process stored events because, besides the in-memory or Postgres storage that is able to preserve the consistency of the events stored (i.e. if the event are there then they must be consistent), there is the possibility of inconsistencies in the events that are stored in a general case by using directly the EventStoreDb or a message broker system.</p>
+<p>Here is an implementation of the evolve that skips eventual inconsistent events:</p>
 <pre><code class="language-Fsharp">    let inline evolve&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; (h: 'A) (events: List&lt;'E&gt;): Result&lt;'A, string&gt; =
         let rec evolveSkippingErrors (acc: Result&lt;'A, string&gt;) (events: List&lt;'E&gt;) (guard: 'A) =
             match acc, events with
@@ -290,7 +290,7 @@ Note that the snapshot may be cached in memory, so that the deserialization is d
 <p>Code in <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Repository.fs">Repository.fs</a> and
 <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Core.fs">Core.fs</a></p>
 <p>There is also an experimental repository based on a publish/subscribe storage model (Eventstoredb).
-See lightrepository</p>
+See <em>lightrepository</em></p>
 <p><a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/LightRepository.fs">LightRepository.fs</a> </p>
 
                     </main>

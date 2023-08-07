@@ -145,28 +145,28 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="refactoring-strategy"><a class="header" href="#refactoring-strategy">Refactoring strategy</a></h1>
-<p>By aggregate refactoring I mean when we have the same models, the same application behavior and we just move  models from one aggregate to another.</p>
+<p>By aggregate refactoring I mean when we have the same models, the same application behavior and we just move models from one aggregate to another.</p>
 <p>Here I am showing a strategy for refactoring aggregates in terms of:</p>
 <ul>
-<li>moving the models ownership between aggregates, </li>
+<li>moving the model's ownership between aggregates, </li>
 <li>introducing new aggregates </li>
 <li>upgrading old aggregates.</li>
 <li>dropping aggregates.</li>
 </ul>
-<p>The problem arise because it looks overcomplicated d to make upfront decision about aggregates.</p>
-<p>It looks to me more convenient having few aggregate, for instance in a development and prototyping stage because this will simplify testing, prototyping, building the application service layer.
-Consider the extreme when we have everithing in a single aggregate. It would mean that the application service layer will be able to handle all the models with few lines of code (just building single command for the repository)</p>
-<p>However, at a later stage, a proper refactoring is probably needed by moving models to different aggregates or creating new aggregates for performance reasons.</p>
+<p>The problem arises because it looks overcomplicated d to make upfront decisions about aggregates.</p>
+<p>It looks to me more convenient to have a few aggregates, for instance in a development and prototyping stage because this will simplify testing, prototyping, and building the application service layer.
+Consider the extreme when we have everything in a single aggregate. It would mean that the application service layer will be able to handle all the models with few lines of code (just building single command for the repository)</p>
+<p>However, at a later stage, proper refactoring is probably needed by moving models to different aggregates or creating new aggregates for performance reasons.</p>
 <p>Refactoring aggregates in that sense means leaving the application service layer behavior unchanged.</p>
 <p>The steps that may be followed are:</p>
 <ul>
-<li>defining new aggregates and eventually create upgraded version of current aggregates</li>
+<li>defining new aggregates and eventually creating upgraded version of current aggregates</li>
 <li>moving models ownership from old aggregates to new aggregates (or to updated versions of the same aggregates which is the same)</li>
 <li>creating an upgraded version of the application service layer using the new set of aggregates</li>
 <li>applying the equivalent tests of the previous service layer to the new one.</li>
 </ul>
 <p>About this latest point, a parametric testing strategy is also possible.</p>
-<p>Here is anexample of a list of tuples of multiple application version configuration with migration function.</p>
+<p>Here is an example of a list of tuples of multiple application version configurations with migration functions.</p>
 <pre><code class="language-FSharp">let allVersions =
     [
         (AppVersions.applicationPostgresStorage,        AppVersions.applicationPostgresStorage,       fun () -&gt; () |&gt; Result.Ok)
@@ -178,7 +178,7 @@ Consider the extreme when we have everithing in a single aggregate. It would mea
         (AppVersions.applicationMemoryStorage,          AppVersions.applicationShadowMemoryStorage,   AppVersions.applicationMemoryStorage._migrator.Value)
     ]
 </code></pre>
-<p>There are specific attributes to distinguish current and &quot;upgrading&quot; verion of elements of the application. </p>
+<p>There are specific attributes to distinguish current and &quot;upgrading&quot; versions of elements of the application. </p>
 <p>A migration function is needed to move data from old aggregates to new aggregates.</p>
 <p>Code here: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample.Test/MultiVersionsTests.fs">MultiVersionsTests.fs</a></p>
 

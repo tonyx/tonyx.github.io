@@ -3,9 +3,9 @@ The repository has the responsibility of:
 - getting the state of an aggregate
 - trying to run commands passed, and eventually storing the related events returned by the command.
 - making periodic snapshots, according to the SnapshotsInterval parameter of the aggregate.
-(remember tht snapshots are explicitly used only in the Postgres and InMemory storage implementations)
+(remember that snapshots are explicitly used only in the Postgres and InMemory storage implementations)
 
-Here an example of the private member that retrieve the last snapshot:
+Here is an example of the private member that retrieves the last snapshot:
 
 ```FSharp
     let inline private getLastSnapshot<'A 
@@ -27,7 +27,7 @@ Here an example of the private member that retrieve the last snapshot:
         }
 ```
 This function uses the storage to retrieve a triple of the snapshotId, the related eventId and the snapshot itself, serialized as json.
-Note that the snapshot may be cached in memory, so that the deserialization is done only once.
+Note that the snapshot may be cached in memory so that the deserialization is done only once.
 
 To get the current state of an aggregate we need to get the last snapshot and the events that are after the snapshot.
 
@@ -67,7 +67,7 @@ Here is an older version of how to get the state:
         }
 ```
 
-Now I show the current implementation that enable the aggregate-state caching:
+Now I show the current implementation that enables the aggregate-state caching:
 
 ```FSharp
     let inline getState<'A, 'E
@@ -111,11 +111,11 @@ Now I show the current implementation that enable the aggregate-state caching:
         StateCache<'A>.Instance.Memoize (fun () -> eventuallyFromCache()) (lastEventId, 'A.StorageName)
 ```
 
-In the above code, the state is function of event id, and so we can use this eventId as the key of a cache that stores the state of the aggregate.
+In the above code, the state is a function of eventId, and so we can use this eventId as the key of a cache that stores the state of the aggregate.
 
 Note that here the evolve function is used, which is part of the core library.
 
-There are actually two similar evolve implementation:
+There are actually two similar evolve implementations:
 
 the basic implementation of the evolve is the one that cannot forgive any inconsistency in the  events passed as parameters with the current aggregate state:
 
@@ -130,9 +130,9 @@ the basic implementation of the evolve is the one that cannot forgive any incons
             ) (h |> Ok)
 ```
 
-The previous version is not used to process stored events because, beside the in memory or postgres storage that are able to preserve consistency of the events stored (i.e. if the event are there then they must be consistent), there is the possibility of inconsistencies in the events that are stored in a general case by using directly the EventStoreDb or a message broker system.
+The previous version is not used to process stored events because, besides the in-memory or Postgres storage that is able to preserve the consistency of the events stored (i.e. if the event are there then they must be consistent), there is the possibility of inconsistencies in the events that are stored in a general case by using directly the EventStoreDb or a message broker system.
 
-Here an implementation of the evolve that skip eventual inconsistent events:
+Here is an implementation of the evolve that skips eventual inconsistent events:
 
 ```Fsharp
     let inline evolve<'A, 'E when 'E :> Event<'A>> (h: 'A) (events: List<'E>): Result<'A, string> =
@@ -165,7 +165,7 @@ Code in [Repository.fs](https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/S
 
 
 There is also an experimental repository based on a publish/subscribe storage model (Eventstoredb).
-See lightrepository
+See _lightrepository_
 
  [LightRepository.fs](https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/LightRepository.fs) 
 

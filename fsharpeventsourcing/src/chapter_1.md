@@ -1,9 +1,9 @@
 # Models
 
 In Sharpino the models are collections of entities.
-The general case is that a model contains has no direct reference to any other model but may reference them by their id. So for instance a todo may contain a list of tag ids and a list of category ids.
+The general case is that a model contains no direct reference to any other model but may reference them by their id. So for instance a todo may contain a list of tag ids and a list of category ids.
 This is the general case because it is the most flexible one: you can change the model without any need to change the other models
-However there can be exceptions for models that are are closely related: for instance you may rather define a model for orders and a model for orderitems in the same place, so that any orders can contain direct reference to orderitems instead of id of orderitems.
+However there can be exceptions for models that are closely related: for instance, you may rather define a model for orders and a model for orderitems in the same place so that any orders can contain a direct reference to orderitems instead of the id of orderitems.
 
 Here there is a simple model of the todo items:
 
