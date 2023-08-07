@@ -25,7 +25,7 @@ A Simple model for todo items:
                 }
 ```
 
-As I can show in future documents, in an application using the Fable Remoting technology, the definition of the single entities of models must be shared with the Fable Client in a shared project, and that means that in our case the "type Todo" needs being in a Shared project. (shared between a Fable/Elmish client project).
+As I will hopefully show in future documents, in an application using technologies where entities definition must be shared between client and server, like inf Fable Remoting, the definition of the single entities of models must stai in a shared project, available to the client (Fable/Elmish) and to the server. So the "Todo type" will need to be in a shared project.
 
 Source: [TodosModel.fs](https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/models/TodosModel.fs)
 

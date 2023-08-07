@@ -6,9 +6,8 @@ Here I am showing a strategy for refactoring aggregates in terms of:
 - upgrading old aggregates.
 - dropping aggregates.
 
-Looks more convenient having few aggregate, in a development and prototyping stage.
-
-This will simplify testing, prototyping, building the application service layer.
+It looks more convenient having few aggregate, in a development and prototyping stage because this will simplify testing, prototyping, building the application service layer.
+Consider that having everithing in a single aggregate would mean that the application service layer will be able to handle all the models with few lines of code (just building single command for the repository)
 
 However, at a later stage, a proper refactoring is probably needed by moving models to different aggregates or creating new aggregates for performance reasons.
 
@@ -18,7 +17,7 @@ The steps that may be followed are:
 - defining new aggregates and eventually create upgraded version of current aggregates
 - moving models ownership from old aggregates to new aggregates (or to updated versions of the same aggregates which is the same)
 - creating an upgraded version of the application service layer using the new set of aggregates
-- applyng the equivalent tests of the previous service layer to the new one.
+- applying the equivalent tests of the previous service layer to the new one.
 
 About this latest point, a parametric testing strategy is also possible.
 
