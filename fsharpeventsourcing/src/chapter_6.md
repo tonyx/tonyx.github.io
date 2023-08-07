@@ -1,8 +1,9 @@
 # Repository
 The repository has the responsibility of:
 - getting the state of an aggregate
-- trying to run commands passed, and eventually storing the related events.
+- trying to run commands passed, and eventually storing the related events returned by the command.
 - making periodic snapshots, according to the SnapshotsInterval parameter of the aggregate.
+(remember tht snapshots are explicitly used only in the Postgres and InMemory storage implementations)
 
 Here an example of the private member that retrieve the last snapshot:
 
@@ -25,9 +26,8 @@ Here an example of the private member that retrieve the last snapshot:
             return result
         }
 ```
-This function use the storage to retrieve a triple of the snapshotId, the related eventId and the snapshot itself, serialized as json.
+This function uses the storage to retrieve a triple of the snapshotId, the related eventId and the snapshot itself, serialized as json.
 Note that the snapshot may be cached in memory, so that the deserialization is done only once.
-
 
 To get the current state of an aggregate we need to get the last snapshot and the events that are after the snapshot.
 
@@ -67,7 +67,7 @@ Here is an older version of how to get the state:
         }
 ```
 
-Now I am showing how it is working in a way that the current state can also be cached.
+Now I show the current implementation that enable the aggregate-state caching:
 
 ```FSharp
     let inline getState<'A, 'E
@@ -111,12 +111,16 @@ Now I am showing how it is working in a way that the current state can also be c
         StateCache<'A>.Instance.Memoize (fun () -> eventuallyFromCache()) (lastEventId, 'A.StorageName)
 ```
 
-In the above code, the state is function of the event stream, and so we can use this eventId as the key of a cache that stores the state of the aggregate.
+In the above code, the state is function of event id, and so we can use this eventId as the key of a cache that stores the state of the aggregate.
 
-Note that here the evolve function is used, which is part of the core library and is defined as follows:
+Note that here the evolve function is used, which is part of the core library.
+
+There are actually two similar evolve implementation:
+
+the basic implementation of the evolve is the one that cannot forgive any inconsistency in the  events passed as parameters with the current aggregate state:
 
 ```Fsharp
-    let inline evolve<'A, 'E when 'E :> Event<'A>> (h: 'A) (events: List<'E>) =
+    let inline evolveUNforgivingErrors<'A, 'E when 'E :> Event<'A>> (h: 'A) (events: List<'E>) =
         events
         |> List.fold
             (fun (acc: Result<'A, string>) (e: 'E) ->
@@ -124,6 +128,36 @@ Note that here the evolve function is used, which is part of the core library an
                     | Error err -> Error err 
                     | Ok h -> h |> e.Process
             ) (h |> Ok)
+```
+
+The previous version is not used to process stored events because, beside the in memory or postgres storage that are able to preserve consistency of the events stored (i.e. if the event are there then they must be consistent), there is the possibility of inconsistencies in the events that are stored in a general case by using directly the EventStoreDb or a message broker system.
+
+Here an implementation of the evolve that skip eventual inconsistent events:
+
+```Fsharp
+    let inline evolve<'A, 'E when 'E :> Event<'A>> (h: 'A) (events: List<'E>): Result<'A, string> =
+        let rec evolveSkippingErrors (acc: Result<'A, string>) (events: List<'E>) (guard: 'A) =
+            match acc, events with
+            | Error err, _::es -> 
+                // you may want to print or log this
+                printf "warning: %A\n" err
+                evolveSkippingErrors (guard |> Ok) es guard
+            | Error err, [] -> 
+                // you may want to print or log this
+                printf "warning: %A\n" err
+                guard |> Ok
+            | Ok state, e::es ->
+                let newGuard = state |> e.Process
+                match newGuard with
+                | Error err -> 
+                    // use your favorite logging library here
+                    printf "warning: %A\n" err
+                    evolveSkippingErrors (guard |> Ok) es guard
+                | Ok h' ->
+                    evolveSkippingErrors (h' |> Ok) es h'
+            | Ok h, [] -> h |> Ok
+
+        evolveSkippingErrors (h |> Ok) events h
 ```
 
 Code in [Repository.fs](https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Repository.fs) and

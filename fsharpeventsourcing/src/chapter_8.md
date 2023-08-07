@@ -1,13 +1,17 @@
 # Refactoring strategy
 
+By aggregate refactoring I mean when we have the same models, the same application behavior and we just move  models from one aggregate to another.
+
 Here I am showing a strategy for refactoring aggregates in terms of:  
 - moving the models ownership between aggregates, 
 - introducing new aggregates 
 - upgrading old aggregates.
 - dropping aggregates.
 
-It looks more convenient having few aggregate, in a development and prototyping stage because this will simplify testing, prototyping, building the application service layer.
-Consider that having everithing in a single aggregate would mean that the application service layer will be able to handle all the models with few lines of code (just building single command for the repository)
+The problem arise because it looks overcomplicated d to make upfront decision about aggregates.
+
+It looks to me more convenient having few aggregate, for instance in a development and prototyping stage because this will simplify testing, prototyping, building the application service layer.
+Consider the extreme when we have everithing in a single aggregate. It would mean that the application service layer will be able to handle all the models with few lines of code (just building single command for the repository)
 
 However, at a later stage, a proper refactoring is probably needed by moving models to different aggregates or creating new aggregates for performance reasons.
 

@@ -1,5 +1,5 @@
 # Storage
-A storage stores and retrieves events and snapshots about any aggregate.
+A storage stores and retrieves events and snapshots related to each single aggregate.
 
 In a strict way storage ensures transactionality particularly in special cases like when adding events related to multiple aggregates.
 

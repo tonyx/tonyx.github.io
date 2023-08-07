@@ -1,7 +1,7 @@
 # Commands
 
 There is a concrete implementation of command for each aggregate.
-We define Commands as Discriminated Union type and, when executed, they will produce a lists of events or an error.
+For each aggregate, i define its own Commands type as a Discriminated Union type. When the command is and, it will returnlo a lists of events or an error.
 We have also _"command undoers"_, that allow us to compensate the effect of a command in case it is part of a multiple stream transaction that fails  as we will see later.
 
 The abstract definitions of Command and Undoer  are:
@@ -38,7 +38,7 @@ Example:
             member this.Undoer = None
 ```
 
-It is unusual to define commands such as they will return multiple events, but we can do it, as follows:
+It is possible, althought uncommon, to define for commands cases that can return multiple events as follows:
 
 ```FSharp
     type TodoCommand =
@@ -59,24 +59,25 @@ It is unusual to define commands such as they will return multiple events, but w
             member this.Undoer
 
 ```
-It is important that any command must ensure that it returns some events only if those events, when applied to the current aggregate state, will return an Ok result (and no error). 
-For that reason, before returning the events, I invoked the "evolveUNforgivingErrors" function to probe the sequence of two events to be eventually returned. The evolveUNforgivingErrors applies the events to the current state and will return an error if the result is an error.
-The ordinary evolve is able to skip errors and return the state anyway.
+It is important that any command must ensure that it will return Ok (and therefore, one or more events) only if when those events are processed with the current aggregate state, an Ok result, i.e. a valid aggregate state (and no error). 
+For that reason, before returning the events, I invoked the "evolveUNforgivingErrors" function to "probe" the sequence of two events to be eventually returned. 
+The evolveUNforgivingErrors processes some events to a given state of the aggregate returning an error or a valid state.
+There is also a similar function _evolve_ which is more tollerant and will just skip events that, when processed gives error, and can return a valid aggregate state anyway.
+
 Commands can use event caching if it is enabled as we have seen in the previous section.
 
 ## Undoer
 
-A command may have associated an _undoer_ which is similar to a command itself but it is aimed to eventually do the "reverse" of a command, which means  compensating the effect of a command in case such command is a part of a multiple stream transaction that fails. We need the _undoer_ only if the storage lack of multiple streams transactions (which is the case of EventStoreDb)
+A command case in a command type definition may have associated an _undoer_ which is similar to a command itself, but it is aimed to eventually do the "reverse" of a command, which means  compensating the effect of a command in case such command is a part of a multiple stream transaction that fails. We need the _undoer_ only if the storage lack of multiple streams transactions (which is the case of EventStoreDb)
 
 ```FSharp
     type Undoer<'A, 'E when 'E :> Event<'A>> = 'A -> Result<List<'E>, string>
 ```
 
+So, as a recap: when the repository uses storages like _in memory_ or _Postgres_, it doesn't need any _undoer_ because those storages support multiple stream transactions.
+If you will use an EventStoreDb like engine as storage, you may want to provide an undoer for each command case.
 
-So, as a recap: when the repository uses only in memory or Postgres storage, it doesn't need any _undoer_ because in memory and Postgres storage support multiple stream transactions.
-If you will use an EventStoreDb like engine as storage, you may want to provide an undoer for each command in case it will be part of a multiple stream transaction.
-
-I am going to show an example of an undoer but before that let me remind the abstract definition of a command.
+I am going to show an example of an undoer. Let me remind the abstract definition of a command.
 
 ```FSharp
     type Command<'A, 'E when 'E :> Event<'A>> =
@@ -84,19 +85,19 @@ I am going to show an example of an undoer but before that let me remind the abs
         abstract member Undoer: Option<'A -> Result<Undoer<'A, 'E>, string>>
 ```
 
-This shows that the command may provide an Undoer which is a function that returns an actual undoer (!).
-Here is the way we can user an under in a command: given the current state of the aggregate, the "command undoer" returns a function that, applied to the state, actually returns an actual undoer.
-So the actual undoer now available is ready to be executed and can return a list of events that can compensate the effect of the command if we need it.
+
+Given the current state of the aggregate, the "command undoer" returns a function that, applied to the aggregate state, must return the actual undoer.
 
 So the undoers works in two shots: one to build a context for the eventual future undo, and one to atually... _do_ the _undo!_. 
 
-Concretely:
+__A Concrete example__:
 
-The removeTag command returns a list of TagRemoved events. When those events are processed the result is the aggregate without the tags.
+The removeTag command returns a list of TagRemoved events. We know that when those events are processed the result is the aggregate without the tags.
+However we may want to rollback the effect of those events by adding events that reverse thir effect.
 
-In a transaction context if you want to be ready to eventually reverse the effect of the removeTag command you need to readd the tag to the aggregate state. For this reason you need to build a context before the removal so that the tag to be eventually readded is still available.
+This applies to a transaction context: you need to be able to readd the tag to the aggregate state. For this reason you need to build a context  _before_ the removal so that the tag to be eventually readded is still available.
 
-From the code perspective:
+From the code with some comments:
 
 ```Fsharp
     member this.Undoer = 
@@ -118,7 +119,7 @@ From the code perspective:
             )
             |> Some
         | AddTag t ->
-            // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. The context is the tag itself (particularly its id), that is not lost during the transaction.
+            // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. The context is the tag itself (particularly its id), that can't be lost during the transaction.
             (fun (_: TagsAggregate) ->
                 fun (x': TagsAggregate) ->
                     x'.RemoveTag t.Id 
