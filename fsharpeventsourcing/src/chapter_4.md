@@ -1,5 +1,6 @@
 # Commands
 
+There is a command definition for each aggregate.
 Any commands is defined as a Discriminated Union type and, when executed, will produce a lists of events or an error.
 The abstract definitions of Command and Undoer (see later) are:
 
@@ -49,19 +50,20 @@ It is unusual to define commands such as they will return multiple events, but t
                 let evolved =
                     fun () ->
                     [TodoEvent.TodoAdded t1; TodoEvent.TodoAdded t2]
-                    |> evolve x
+                    |> evolveUNforgivingErrors x
                 match evolved() with
                     | Ok _ -> [TodoEvent.TodoAdded t1; TodoEvent.TodoAdded t2] |> Ok
                     | Error x -> x |> Error
             member this.Undoer
 
 ```
-Any command must ensure that it returns some events only if those events, when applied to the current aggregate state, will return an Ok result (and no error). 
+It is important that any command must ensure that it returns some events only if those events, when applied to the current aggregate state, will return an Ok result (and no error). 
+For that reason before returning the events, I invoked the "evolveUNforgivingErrors" function to probe the sequence of two events to be eventually returned. the evolveUNforgivingErrors applies the events to the current state and will return an error only if the result is an error.
 Commands can use event caching if it is enabled as we have seen in the previous section.
 
 ## Undoer
 
-A command may have associated an _undoer_ which is similar to a command but it is aimedo to eventually compensate the effect of a command in case such command is a part of a multiple stream transaction that fails. We need the _undoer_ only if the storage lack of multiple streams transactions (which is the case of EventStoreDb)
+A command may have associated an _undoer_ which is similar to a command itself but it is aimedo to eventually to the "reverse" of a command, which means  compensating the effect of a command in case such command is a part of a multiple stream transaction that fails. We need the _undoer_ only if the storage lack of multiple streams transactions (which is the case of EventStoreDb)
 
 ```FSharp
     type Undoer<'A, 'E when 'E :> Event<'A>> = 'A -> Result<List<'E>, string>
@@ -84,7 +86,7 @@ The command provide an optional Undoer which is a function that returns an actua
 This how this works: given the current state of the aggregate, the "command undoer" returns a function that applied to the states actually returns an actual undoer.
 So in the undoer is ready to be executed and can return a list of events that can compensate the effect of the command.
 
-So the undoers works in two shots: one to build a context for the eventual future undo, and one to atually... _do the "undo"!_. 
+So the undoers works in two shots: one to build a context for the eventual future undo, and one to atually... _do_ the _undo!_. 
 
 Here is an example of why this apparent overcomplication is needed:
 

@@ -1,6 +1,6 @@
 # Aggregates
 
-An aggregate is a class that contains and handle one or more models. We will be able to access to the state of the aggregate by processing the stored events where the definitions of such events are closely related to members of the aggregate. 
+An aggregate is an instance of a  record that contains and handle one or more models. We will be able to recreate the state of the aggregate by processing the stored events. The definitions of such events are closely related to some members of the aggregate. 
 
 Given that the state of the aggregatre is a function of the related events present in the storage, an aggregate must define the following static members:
 
@@ -33,7 +33,7 @@ Example:
             15
 ```
 
-Some members of the aggregate that are meant to do action on it changing (virtually) its state (i.e. they return the aggregate in a new state or an error). It atually means that such members will virtually change some models (add/upate/delete). Those members will be associated to specific events data structure (see next section).
+Some members of the aggregate virtually changge  its state (i.e. they return the aggregate in a new state or an error). It atually means that such members will do add/upate/delete on their model (still in a functional way). Those members will be associated to specific definition of _events_ (see next section).
 In the following example the aggregate of the todos manages also the categories model and so it provides check related to categories before adding a todo (you can add only todo with categoryIds related to existing categories).
 It uses a computational expression included in the FsToolkit.ErrorHandling library to manage errors in a _railway oriented programming_ style.
 
@@ -56,6 +56,6 @@ Example:
                     }
             }
 ```
-Recap: invariant conditions related to models residing in the same aggregate can be preserved without the need of explicit transaction, because at that level there is no awareness of the storage. Invariant conditions involving models residing in different aggregates must be preserved at the application layer level (see the next sections).
+Recap: invariant conditions related to models residing in the same aggregate can be preserved without the need of explicit transaction, because at that level there is no awareness of the storage. Invariant conditions involving models residing in different aggregates could be preserved at the application layer level (see the next sections).
 
 Source: [TodosAggregate.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Aggregate.fs)

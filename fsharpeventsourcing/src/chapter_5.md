@@ -7,7 +7,7 @@ Here is one of the simplest example of an entry for a services involving a singl
 
 ```FSharp
     member this.addTag tag =
-        ResultCE.result {
+        result {
             let! _ =
                 tag
                 |> AddTag
