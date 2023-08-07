@@ -1,10 +1,10 @@
 # Models
 
 In Sharpino models are collections of entities.
-Usually a model contains references to elements of other models only indirectly, for example by including their ids.
-However there can be exceptions when some models are closely related: for instance you may find convenient to define a model for orders and a model for orderitems in the same place, so that orders will be able to contain direct reference to orderitems instead of their ids.
+Usually a model contains references to elements of other models only indirectly, by using their id as a reference.
+However there can be exceptions when some models are closely related: for instance you may rather define a model for orders and a model for orderitems in the same place, so that orders will be able to contain direct reference to orderitems instead of their ids.
 
-A Simple model for todo items:
+A Simple model for the todo items:
 
 ```FSharp
     type Todo =
@@ -25,7 +25,10 @@ A Simple model for todo items:
                 }
 ```
 
-Note that in an application using technologies where entities definition must be shared between client and server, like Fable Remoting, the definition of the single entities of models must stay in a shared project, available to the client (Fable/Elmish) and to the server as well. So the "Todo type" definition will need to be in a shared project.
+There is a special "Zero" static member that does not matter so much for the model, but it is important for the aggregate (see the next section). Indeed the _Zero_ static member is mandatory for any aggregate.
+
+Note that in some popular Fsharp technologies some definitions must stay in a separate project whared beteen the client and the server separate projects.
+(See Fable remoting for more informations about that).
 
 Source: [TodosModel.fs](https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/models/TodosModel.fs)
 

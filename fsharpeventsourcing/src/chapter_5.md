@@ -1,6 +1,6 @@
 # Application service layer
 
-An application service layer provides services that actually uses Respository and Storage to get the state and/or send commands to one or more aggregates eventyally in a coordinated (i.e. transactional) way.
+An application service layer provides services that actually uses Respository and Storage to get the state and/or send commands to one or more aggregates eventyally in an atomic/transactional way.
 
 Here is one of the simplest example of an entry for a services involving a single aggregate, by builing and running a AddTag command.
 

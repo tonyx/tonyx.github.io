@@ -10,7 +10,7 @@ The abstract definition of an Event is:
 ```
 The _'A_ is the generic aggregate type the event is associated to.
 
-Example of implementation relate to the TodoAggregate members _Add_ and _Remove_:
+This is an example of a concrete implementation ov event relate to the TodoAggregate members _Add_ and _Remove_:
 
 ```Fsharp
     type TodoEvent =
