@@ -150,7 +150,7 @@
 <li>getting the state of an aggregate</li>
 <li>trying to run commands passed, and eventually storing the related events returned by the command.</li>
 <li>making periodic snapshots, according to the SnapshotsInterval parameter of the aggregate.
-(remember that snapshots are explicitly used only in the Postgres and InMemory storage implementations)</li>
+(remember that snapshots are explicitly used only in the Postgres and in-memory storage implementations)</li>
 </ul>
 <p>Here is an example of the private member that retrieves the last snapshot:</p>
 <pre><code class="language-FSharp">    let inline private getLastSnapshot&lt;'A 
@@ -171,7 +171,7 @@
             return result
         }
 </code></pre>
-<p>This function uses the storage to retrieve a triple of the snapshotId, the related eventId and the snapshot itself, serialized as json.
+<p>This function uses the storage to retrieve a triple of the snapshot-Id, the related eventId and the snapshot itself, serialized as json.
 Note that the snapshot may be cached in memory so that the deserialization is done only once.</p>
 <p>To get the current state of an aggregate we need to get the last snapshot and the events that are after the snapshot.</p>
 <p>Here is an older version of how to get the state:</p>
@@ -207,7 +207,7 @@ Note that the snapshot may be cached in memory so that the deserialization is do
             return (lastEventId, result)
         }
 </code></pre>
-<p>Now I show the current implementation that enables the aggregate-state caching:</p>
+<p>Now I show the current implementation that enables aggregate-state caching:</p>
 <pre><code class="language-FSharp">    let inline getState&lt;'A, 'E
         when 'A: (static member Zero: 'A)
         and 'A: (static member StorageName: string)

@@ -145,7 +145,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
-<p>An application service layer provides services that actually use Repository and Storage to get the state and/or send commands to one or more aggregates (eventually in an atomic/transactional way with potential issues already discussed).</p>
+<p>An application service layer provides services that use Repository and Storage to get the state and/or send commands to one or more aggregates (eventually in an atomic/transactional way with potential issues already discussed).</p>
 <p>Here is one of the simplest examples of an entry for a service involving a single aggregate, by building and running an AddTag command.</p>
 <pre><code class="language-FSharp">    member this.addTag tag =
         result {
@@ -205,8 +205,8 @@
             |&gt; Async.RunSynchronously
 </code></pre>
 <p>The entire expression is wrapped in an async block and the processor.PostAndReply function is used to send the function f to the processor and wait for the result.</p>
-<p>This approach is effective because ensures single thread processing but may slow down the processing of commands if the aggregate is involved in a long-running transaction.</p>
-<p>In some cases we may rather try to go back to explicit locks, in some cases it could be more convenient to use the mailboxprocessor and in other cases, we may not use any sync mechanism at all!</p>
+<p>This approach is effective because ensures single-thread processing but may slow down the processing of commands if the aggregate is involved in a long-running transaction.</p>
+<p>In some cases we may rather try to go back to explicit locks, it could be more convenient to use the mailboxprocessor and in other cases, we may not use any sync mechanism at all!</p>
 <p>If the problem is that the order is not preserved the fact that two &quot;todoAdded&quot; events are stored in a different order than how they are produced nobody cares. are actually.</p>
 <p>At worst the event stored will be inconsistent and skipped by the &quot;evolve&quot;. So the &quot;no lock&quot; solution is a sort of optimistic locking that works in many cases. </p>
 <p>Another example is the following, about sending commands to more aggregates.

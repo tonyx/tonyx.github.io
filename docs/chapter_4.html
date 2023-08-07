@@ -211,10 +211,10 @@ If you will use an EventStoreDb-like engine as storage, you may want to provide 
         abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
         abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
 </code></pre>
-<p>Given the current state of the aggregate, the &quot;command undoer&quot; returns a function that, applied to the aggregate state, must return the actual undoer.</p>
+<p>Given the current state of the aggregate, the &quot;command undoer&quot; returns a function that, applied to the aggregate state, must return the actual <em>undoer</em>.</p>
 <p>So the undoers work in two shots: one to build a context for the eventual future undo, and one to actually... <em>do</em> the <em>undo!</em>. </p>
 <p><strong>A Concrete example</strong>:</p>
-<p>The removeTag command returns a list of TagRemoved events. We know that when those events are processed the result is the aggregate without the tags.
+<p>The <em>RemoveTag</em> command returns a list of TagRemoved events. We know that when those events are processed the result is the aggregate without the tags.
 However, we may want to roll back the effect of those events by adding events that reverse their effect.</p>
 <p>This applies to a transaction context: you need to be able to re-add the tag to the aggregate state. For this reason, you need to build a context <em>before</em> the removal so that the tag to be eventually readded is still available.</p>
 <p>From the code with some comments:</p>

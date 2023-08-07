@@ -158,10 +158,10 @@ There are two version of the same application that use different aggregate confi
 <p>The &quot;version 2&quot; of the application consists in three different aggregates: one for the Todo model, one for the Categories model, and another one for the Tags model.</p>
 <p>The challenge is that you can write parametric tests that can be executed against the current and the next aggregate configuration, also by testing the migration function.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="models"><a class="header" href="#models">Models</a></h1>
-<p>In Sharpino the models are collections of entities.
+<p>In <strong>Sharpino</strong> the models are collections of entities.
 The general case is that a model contains no direct reference to any other model but may reference them by their id. So for instance a todo may contain a list of tag ids and a list of category ids.
-This is the general case because it is the most flexible one: you can change the model without any need to change the other models
-However there can be exceptions for models that are closely related: for instance, you may rather define a model for orders and a model for orderitems in the same place so that any orders can contain a direct reference to orderitems instead of the id of orderitems.</p>
+This is the general case because it is the most flexible one: you can change the model without any need to change the other models.
+However there can be exceptions for models that are closely related: for instance, you may rather define a model for orders and a model for order items in the same place so that any orders can contain a direct reference to order items instead of the id of order items.</p>
 <p>Here there is a simple model of the todo items:</p>
 <pre><code class="language-FSharp">    type Todo =
         {
@@ -180,11 +180,11 @@ However there can be exceptions for models that are closely related: for instanc
                     todos = []
                 }
 </code></pre>
-<p>You've seen a special &quot;Zero&quot; static member. The aggregate will use it to define its own <em>Zero</em> static member that is mandatory for any aggregate.
+<p>You've seen a special &quot;Zero&quot; static member. The aggregate will use it to define its own <em>Zero</em> static member which is mandatory for any aggregate.
 The <em>Zero</em> static member is the initial state of the aggregate and it is used to rebuild the state of the aggregate when there are no events stored for that aggregate.
-Note that in some popular full stack development FSharp technologies some definitions must stay in a separate project shared beteen the client and the server separate projects.
-In that case we would define the &quot;Todo&quot;, the &quot;Tag&quot; and the &quot;Category&quot; types in a shared project.
-(See Fable remoting for more informations about that).</p>
+Note that in some popular full-stack development FSharp technologies some definitions must stay in a separate project shared between the client and the server separate projects.
+In that case, we would define the &quot;Todo&quot;, the &quot;Tag&quot; and the &quot;Category&quot; types in a shared project.
+(See Fable remoting for more information about that).</p>
 <p>Source: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/models/TodosModel.fs">TodosModel.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="aggregates"><a class="header" href="#aggregates">Aggregates</a></h1>
 <p>An aggregate is an instance of a class (or more properly, a record) that handles one or more models. We will be able to recreate the state of the aggregate by processing the stored events by an essential function called <em>evolve</em>. Such   <em>events</em> are closely related to some of the members of the aggregate. </p>
@@ -195,7 +195,7 @@ In that case we would define the &quot;Todo&quot;, the &quot;Tag&quot; and the &
 It is needed to be able to provide the state of the aggregate when there is no event stored related to that aggregate.</p>
 </li>
 <li>
-<p><strong>StorageName</strong> and  <strong>Version</strong>: this combination uniquely identifies the aggragate and lets the storage know in which stream to store events and snapshots.</p>
+<p><strong>StorageName</strong> and  <strong>Version</strong>: this combination uniquely identifies the aggregate and lets the storage know in which stream to store events and snapshots.</p>
 </li>
 <li>
 <ul>
@@ -226,9 +226,9 @@ At the moment I have no specific strategy for handling snapshots and intervals b
         static member SnapshotsInterval =
             15
 </code></pre>
-<p>Some members of the aggregate virtually change the state of the aggregate in the sense that they return an instance of the aggregate in a different state or an error. It actually means that such members will <em>add/update/delete</em> to some of their models (still in a functional/immutable way i.e. returning the model with changes). Those members will be associated with aggregate <em>events</em> (see next section).
-In the following example, the aggregate of the Todos manages also the categories model and so it can check the validity of the categories referenced by a todo before adding it (to preserve the rule that you can add only todo with categoryIds related to existing categories).
-It uses the &quot;result&quot; computational expression included in the FsToolkit.ErrorHandling library supports the possibility to handle errors in a <em>railway oriented programming</em> style.</p>
+<p>Some members of the aggregate virtually change the state of the aggregate in the sense that they return an instance of the aggregate in a different state or an error. It actually means that such members will <em>add/update/delete</em>  some of their models (still in a functional/immutable way i.e. returning the model with changes). Those members will be associated with aggregate <em>events</em> (see next section).
+In the following example, the aggregate of the Todos manages also the categories model and so it can check the validity of the categories referenced by a todo before adding it (to preserve the rule that you can add only todo with category-Ids related to existing categories).
+It uses the &quot;result&quot; computational expression included in the FsToolkit.ErrorHandling library supports the possibility to handle errors in a <em>railway-oriented programming</em> style.</p>
 <p>Example:</p>
 <pre><code class="language-FSharp">    member this.AddTodo (t: Todo) =
         let checkCategoryExists (c: Guid ) =
@@ -247,7 +247,7 @@ It uses the &quot;result&quot; computational expression included in the FsToolki
                     }
             }
 </code></pre>
-<p>Recap: we can protect invariant conditions related to models that are part of the same aggregate without the need for any explicit transaction, because at that level there is no awareness of the storage. Still, we can protect other invariant conditions that may involve models residing in different aggregates anyway in a different way:  at the service application layer (see in the next sections).</p>
+<p>Recap: we can protect invariant conditions related to models that are part of the same aggregate without the need for any explicit transaction because at that level there is no awareness of the storage. Still, we can protect other invariant conditions that may involve models residing in different aggregates anyway in a different way:  at the service application layer (see in the next sections).</p>
 <p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Aggregate.fs">TodosAggregate.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="events"><a class="header" href="#events">Events</a></h1>
 <p>As I said before, some members of an aggregate act as &quot;state changers&quot;, operating add/update/delete on one or more of its models. 
@@ -354,10 +354,10 @@ If you will use an EventStoreDb-like engine as storage, you may want to provide 
         abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
         abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
 </code></pre>
-<p>Given the current state of the aggregate, the &quot;command undoer&quot; returns a function that, applied to the aggregate state, must return the actual undoer.</p>
+<p>Given the current state of the aggregate, the &quot;command undoer&quot; returns a function that, applied to the aggregate state, must return the actual <em>undoer</em>.</p>
 <p>So the undoers work in two shots: one to build a context for the eventual future undo, and one to actually... <em>do</em> the <em>undo!</em>. </p>
 <p><strong>A Concrete example</strong>:</p>
-<p>The removeTag command returns a list of TagRemoved events. We know that when those events are processed the result is the aggregate without the tags.
+<p>The <em>RemoveTag</em> command returns a list of TagRemoved events. We know that when those events are processed the result is the aggregate without the tags.
 However, we may want to roll back the effect of those events by adding events that reverse their effect.</p>
 <p>This applies to a transaction context: you need to be able to re-add the tag to the aggregate state. For this reason, you need to build a context <em>before</em> the removal so that the tag to be eventually readded is still available.</p>
 <p>From the code with some comments:</p>
@@ -392,7 +392,7 @@ However, we may want to roll back the effect of those events by adding events th
 </code></pre>
 <p>Sources: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Commands.fs">Commands.fs</a>)</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
-<p>An application service layer provides services that actually use Repository and Storage to get the state and/or send commands to one or more aggregates (eventually in an atomic/transactional way with potential issues already discussed).</p>
+<p>An application service layer provides services that use Repository and Storage to get the state and/or send commands to one or more aggregates (eventually in an atomic/transactional way with potential issues already discussed).</p>
 <p>Here is one of the simplest examples of an entry for a service involving a single aggregate, by building and running an AddTag command.</p>
 <pre><code class="language-FSharp">    member this.addTag tag =
         result {
@@ -452,8 +452,8 @@ However, we may want to roll back the effect of those events by adding events th
             |&gt; Async.RunSynchronously
 </code></pre>
 <p>The entire expression is wrapped in an async block and the processor.PostAndReply function is used to send the function f to the processor and wait for the result.</p>
-<p>This approach is effective because ensures single thread processing but may slow down the processing of commands if the aggregate is involved in a long-running transaction.</p>
-<p>In some cases we may rather try to go back to explicit locks, in some cases it could be more convenient to use the mailboxprocessor and in other cases, we may not use any sync mechanism at all!</p>
+<p>This approach is effective because ensures single-thread processing but may slow down the processing of commands if the aggregate is involved in a long-running transaction.</p>
+<p>In some cases we may rather try to go back to explicit locks, it could be more convenient to use the mailboxprocessor and in other cases, we may not use any sync mechanism at all!</p>
 <p>If the problem is that the order is not preserved the fact that two &quot;todoAdded&quot; events are stored in a different order than how they are produced nobody cares. are actually.</p>
 <p>At worst the event stored will be inconsistent and skipped by the &quot;evolve&quot;. So the &quot;no lock&quot; solution is a sort of optimistic locking that works in many cases. </p>
 <p>Another example is the following, about sending commands to more aggregates.
@@ -476,7 +476,7 @@ In the case the storage does not support multiple streams transactions (i.e. Eve
 <li>getting the state of an aggregate</li>
 <li>trying to run commands passed, and eventually storing the related events returned by the command.</li>
 <li>making periodic snapshots, according to the SnapshotsInterval parameter of the aggregate.
-(remember that snapshots are explicitly used only in the Postgres and InMemory storage implementations)</li>
+(remember that snapshots are explicitly used only in the Postgres and in-memory storage implementations)</li>
 </ul>
 <p>Here is an example of the private member that retrieves the last snapshot:</p>
 <pre><code class="language-FSharp">    let inline private getLastSnapshot&lt;'A 
@@ -497,7 +497,7 @@ In the case the storage does not support multiple streams transactions (i.e. Eve
             return result
         }
 </code></pre>
-<p>This function uses the storage to retrieve a triple of the snapshotId, the related eventId and the snapshot itself, serialized as json.
+<p>This function uses the storage to retrieve a triple of the snapshot-Id, the related eventId and the snapshot itself, serialized as json.
 Note that the snapshot may be cached in memory so that the deserialization is done only once.</p>
 <p>To get the current state of an aggregate we need to get the last snapshot and the events that are after the snapshot.</p>
 <p>Here is an older version of how to get the state:</p>
@@ -533,7 +533,7 @@ Note that the snapshot may be cached in memory so that the deserialization is do
             return (lastEventId, result)
         }
 </code></pre>
-<p>Now I show the current implementation that enables the aggregate-state caching:</p>
+<p>Now I show the current implementation that enables aggregate-state caching:</p>
 <pre><code class="language-FSharp">    let inline getState&lt;'A, 'E
         when 'A: (static member Zero: 'A)
         and 'A: (static member StorageName: string)
@@ -656,7 +656,7 @@ Consider the extreme when we have everything in a single aggregate. It would mea
 <p>Refactoring aggregates in that sense means leaving the application service layer behavior unchanged.</p>
 <p>The steps that may be followed are:</p>
 <ul>
-<li>defining new aggregates and eventually creating upgraded version of current aggregates</li>
+<li>defining new aggregates and eventually creating upgraded versions of current aggregates</li>
 <li>moving models ownership from old aggregates to new aggregates (or to updated versions of the same aggregates which is the same)</li>
 <li>creating an upgraded version of the application service layer using the new set of aggregates</li>
 <li>applying the equivalent tests of the previous service layer to the new one.</li>
