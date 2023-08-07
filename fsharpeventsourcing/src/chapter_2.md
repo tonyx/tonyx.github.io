@@ -1,6 +1,6 @@
 # Aggregates
 
-An aggregate is an instance of a  record that contains and handle one or more models. We will be able to recreate the state of the aggregate by processing the stored events. The definitions of such events are closely related to some members of the aggregate. 
+An aggregate is an instance of a record that contains and handle one or more models. We will be able to recreate the state of the aggregate by processing the stored events. The definitions of such events are closely related to some members of the aggregate. 
 
 Given that the state of the aggregatre is a function of the related events present in the storage, an aggregate must define the following static members:
 
