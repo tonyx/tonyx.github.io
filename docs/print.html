@@ -160,9 +160,9 @@ I will show a strategy for handling the following aggregate refactoring problem:
 <p>The challenge is that you can write parametric tests that can be executed against the current and the next aggregate configuration, also by testing the migration function.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="models"><a class="header" href="#models">Models</a></h1>
 <p>In Sharpino models are collections of entities.
-Usually a model contains references to elements of other models only indirectly, by using their id as a reference.
-However there can be exceptions when some models are closely related: for instance you may rather define a model for orders and a model for orderitems in the same place, so that orders will be able to contain direct reference to orderitems instead of their ids.</p>
-<p>A Simple model for the todo items:</p>
+Usually a model contains references to elements of other models only indirectly, by using their unique identifiers (id) as a reference.
+However there can be exceptions for models that are are closely related: for instance you may rather define a model for orders and a model for orderitems in the same place, so that orders will be able to contain direct reference to orderitems instead of their ids.</p>
+<p>Here there is a simple model of the todo items:</p>
 <pre><code class="language-FSharp">    type Todo =
         {
             Id: Guid
@@ -180,12 +180,12 @@ However there can be exceptions when some models are closely related: for instan
                     todos = []
                 }
 </code></pre>
-<p>There is a special &quot;Zero&quot; static member that does not matter so much for the model, but it is important for the aggregate (see the next section). Indeed the <em>Zero</em> static member is mandatory for any aggregate.</p>
-<p>Note that in some popular Fsharp technologies some definitions must stay in a separate project whared beteen the client and the server separate projects.
+<p>You've seen a special &quot;Zero&quot; static member. It is important, and also mandatory, for an aggregate to define a <em>Zero</em> static member and so it will use the zero member of any model as well.</p>
+<p>Note that in some popular full stack development FSharp technologies some definitions must stay in a separate project shared beteen the client and the server separate projects.
 (See Fable remoting for more informations about that).</p>
 <p>Source: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/models/TodosModel.fs">TodosModel.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="aggregates"><a class="header" href="#aggregates">Aggregates</a></h1>
-<p>An aggregate is an instance of a record that handles one or more models. We will be able to recreate the state of the aggregate by processing the stored events by a fundamental function called <em>evolve</em>. The definitions of such <em>events</em> are closely related to some of the members of the aggregate. </p>
+<p>An aggregate is an instance of a class (or more properly, a record) that handles one or more models. We will be able to recreate the state of the aggregate by processing the stored events by a fundamental function called <em>evolve</em>. Such   <em>events</em> are closely related to some of the members of the aggregate. </p>
 <p>Given that the state of the aggregatre is a function of the related events present in the storage, an aggregate needs the following, mandatory, static members:</p>
 <ul>
 <li>
@@ -224,8 +224,8 @@ At the moment I have no specific strategy for hadling snapshots and interval bet
         static member SnapshotsInterval =
             15
 </code></pre>
-<p>Some members of the aggregate virtually change the state of the aggregate in the sense that they they return the aggregate in a new state or an error. It atually means that such members will do add/upate/delete on their model (still in a functional/immutable way i.e. returning the model with changes). Those members will be associated to specific definition of <em>events</em> (see next section).
-In the following example the aggregate of the todos manages also the categories model and so it can check the validity of the categories referenced before adding a todo (you can add only todo with categoryIds related to existing categories).
+<p>Some members of the aggregate virtually change the state of the aggregate in the sense that they return an instance of the aggregate in a different state or an error. It atually means that such members will do <em>add/upate/delete</em> to some of their models (still in a functional/immutable way i.e. returning the model with changes). Those members will be associated to aggregate <em>events</em> (see next section).
+In the following example the aggregate of the Todos manages also the categories model and so it can check the validity of the categories referenced by a todo before adding it (to preserve the rule that you can add only todo with categoryIds related to existing categories).
 It uses the &quot;result&quot; computational expression included in the FsToolkit.ErrorHandling library supporting the possibility to handle errors in a <em>railway oriented programming</em> style.</p>
 <p>Example:</p>
 <pre><code class="language-FSharp">    member this.AddTodo (t: Todo) =
@@ -245,11 +245,12 @@ It uses the &quot;result&quot; computational expression included in the FsToolki
                     }
             }
 </code></pre>
-<p>Recap: invariant conditions related to models residing in the same aggregate can be preserved without the need of explicit transaction, because at that level there is no awareness of the storage. Invariant conditions involving models residing in different aggregates could be preserved as well, but only by the application layer level (see the next sections).</p>
+<p>Recap: invariant conditions related to models that are part of the same aggregate can be preserved without the need of any explicit transaction, because at that level there is no awareness of the storage. Anyway, we can still preserve other invariant conditions that may involve models residing in different aggregates at the service application layer (see in next sections).</p>
 <p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Aggregate.fs">TodosAggregate.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="events"><a class="header" href="#events">Events</a></h1>
-<p>Events are associated to the members of the aggregate that virtually change the state of the aggregate (i.e. operates  add/update/delete on their models).  They are defined as Discriminated Union (Du) type. </p>
-<p>The abstract definition of an Event is: </p>
+<p>As I said before, some members of an aggregate act as &quot;state changer&quot;, operating add/update/delete on one or more of its models. Those members have a 1 to 1 correspondence with the cases associated to the event type of that aggregate. 
+In essence each aggregate has an associated Event type and such event type is a Discriminated Union (Du) type with a case associated to &quot;state changer&quot; members of the aggregate.</p>
+<p>An event type can be defined, in abstract, as something that, when processed, return a new state of the aggregate or an error, which fits the following definition:</p>
 <pre><code class="language-FSharp">    type Event&lt;'A&gt; =
         abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
 </code></pre>
@@ -268,7 +269,7 @@ It uses the &quot;result&quot; computational expression included in the FsToolki
 
 </code></pre>
 <p>This shows that processing an event means calling the related aggregate member.</p>
-<p>You can cache events by wrapping the member in a lambda expression and passing it to a specific cache manager. </p>
+<p>You can cache events by wrapping the call to the specific aggregate member in a lambda expression without evaluating it, and passing it to a specific cache manager that may eventually evaluate it and return the result or the cached result if the event has already been processed.</p>
 <pre><code class="language-Fsharp">    type TodoEvent =
         | TodoAdded of Todo
         | TodoRemoved of Guid
@@ -280,13 +281,13 @@ It uses the &quot;result&quot; computational expression included in the FsToolki
                     | TodoRemoved (g: Guid) -&gt; 
                         EventCache&lt;TodosAggregate&gt;.Instance.Memoize (fun () -&gt; x.RemoveTodo g) (x, [TodoRemoved t]) 
 </code></pre>
-<p>However, caching events does not show so much improvement so far. Looks more promising the caching of the state of the aggregate (see the next section).</p>
+<p>Having said that about caching, I am warning that  caching events doesn't look so much a &quot;performance booster&quot;. It looks more promising the caching of the state of the aggregate (see the next section).</p>
 <p>Therefore event Caching is disabled by default. See &quot;EVENTS_CACHING_ENABLED&quot; in the project file: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/Sharpino.Lib.fsproj">project file</a>
 To enabled the caching of events, the library must be compiled with the following compilation symbol: <code>EVENTS_CACHING_ENABLED</code>.</p>
 <p>Source:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Events.fs">Events.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
 <p>There is a concrete implementation of command for each aggregate.
-We define Commands as Discriminated Union type and, when executed, they will produce a lists of events or an error.
+For each aggregate, i define its own Commands type as a Discriminated Union type. When the command is and, it will returnlo a lists of events or an error.
 We have also <em>&quot;command undoers&quot;</em>, that allow us to compensate the effect of a command in case it is part of a multiple stream transaction that fails  as we will see later.</p>
 <p>The abstract definitions of Command and Undoer  are:</p>
 <pre><code class="language-FSharp">
@@ -316,7 +317,7 @@ We have also <em>&quot;command undoers&quot;</em>, that allow us to compensate t
                         | Error x -&gt; x |&gt; Error
             member this.Undoer = None
 </code></pre>
-<p>It is unusual to define commands such as they will return multiple events, but we can do it, as follows:</p>
+<p>It is possible, althought uncommon, to define for commands cases that can return multiple events as follows:</p>
 <pre><code class="language-FSharp">    type TodoCommand =
         [...]
         | Add2Todos of Todo * Todo
@@ -335,29 +336,29 @@ We have also <em>&quot;command undoers&quot;</em>, that allow us to compensate t
             member this.Undoer
 
 </code></pre>
-<p>It is important that any command must ensure that it returns some events only if those events, when applied to the current aggregate state, will return an Ok result (and no error). 
-For that reason, before returning the events, I invoked the &quot;evolveUNforgivingErrors&quot; function to probe the sequence of two events to be eventually returned. The evolveUNforgivingErrors applies the events to the current state and will return an error if the result is an error.
-The ordinary evolve is able to skip errors and return the state anyway.
-Commands can use event caching if it is enabled as we have seen in the previous section.</p>
+<p>It is important that any command must ensure that it will return Ok (and therefore, one or more events) only if when those events are processed with the current aggregate state, an Ok result, i.e. a valid aggregate state (and no error). 
+For that reason, before returning the events, I invoked the &quot;evolveUNforgivingErrors&quot; function to &quot;probe&quot; the sequence of two events to be eventually returned. 
+The evolveUNforgivingErrors processes some events to a given state of the aggregate returning an error or a valid state.
+There is also a similar function <em>evolve</em> which is more tollerant and will just skip events that, when processed gives error, and can return a valid aggregate state anyway.</p>
+<p>Commands can use event caching if it is enabled as we have seen in the previous section.</p>
 <h2 id="undoer"><a class="header" href="#undoer">Undoer</a></h2>
-<p>A command may have associated an <em>undoer</em> which is similar to a command itself but it is aimed to eventually do the &quot;reverse&quot; of a command, which means  compensating the effect of a command in case such command is a part of a multiple stream transaction that fails. We need the <em>undoer</em> only if the storage lack of multiple streams transactions (which is the case of EventStoreDb)</p>
+<p>A command case in a command type definition may have associated an <em>undoer</em> which is similar to a command itself, but it is aimed to eventually do the &quot;reverse&quot; of a command, which means  compensating the effect of a command in case such command is a part of a multiple stream transaction that fails. We need the <em>undoer</em> only if the storage lack of multiple streams transactions (which is the case of EventStoreDb)</p>
 <pre><code class="language-FSharp">    type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
 </code></pre>
-<p>So, as a recap: when the repository uses only in memory or Postgres storage, it doesn't need any <em>undoer</em> because in memory and Postgres storage support multiple stream transactions.
-If you will use an EventStoreDb like engine as storage, you may want to provide an undoer for each command in case it will be part of a multiple stream transaction.</p>
-<p>I am going to show an example of an undoer but before that let me remind the abstract definition of a command.</p>
+<p>So, as a recap: when the repository uses storages like <em>in memory</em> or <em>Postgres</em>, it doesn't need any <em>undoer</em> because those storages support multiple stream transactions.
+If you will use an EventStoreDb like engine as storage, you may want to provide an undoer for each command case.</p>
+<p>I am going to show an example of an undoer. Let me remind the abstract definition of a command.</p>
 <pre><code class="language-FSharp">    type Command&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
         abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
         abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
 </code></pre>
-<p>This shows that the command may provide an Undoer which is a function that returns an actual undoer (!).
-Here is the way we can user an under in a command: given the current state of the aggregate, the &quot;command undoer&quot; returns a function that, applied to the state, actually returns an actual undoer.
-So the actual undoer now available is ready to be executed and can return a list of events that can compensate the effect of the command if we need it.</p>
+<p>Given the current state of the aggregate, the &quot;command undoer&quot; returns a function that, applied to the aggregate state, must return the actual undoer.</p>
 <p>So the undoers works in two shots: one to build a context for the eventual future undo, and one to atually... <em>do</em> the <em>undo!</em>. </p>
-<p>Concretely:</p>
-<p>The removeTag command returns a list of TagRemoved events. When those events are processed the result is the aggregate without the tags.</p>
-<p>In a transaction context if you want to be ready to eventually reverse the effect of the removeTag command you need to readd the tag to the aggregate state. For this reason you need to build a context before the removal so that the tag to be eventually readded is still available.</p>
-<p>From the code perspective:</p>
+<p><strong>A Concrete example</strong>:</p>
+<p>The removeTag command returns a list of TagRemoved events. We know that when those events are processed the result is the aggregate without the tags.
+However we may want to rollback the effect of those events by adding events that reverse thir effect.</p>
+<p>This applies to a transaction context: you need to be able to readd the tag to the aggregate state. For this reason you need to build a context  <em>before</em> the removal so that the tag to be eventually readded is still available.</p>
+<p>From the code with some comments:</p>
 <pre><code class="language-Fsharp">    member this.Undoer = 
         match this with
         | RemoveTag g -&gt; 
@@ -377,7 +378,7 @@ So the actual undoer now available is ready to be executed and can return a list
             )
             |&gt; Some
         | AddTag t -&gt;
-            // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. The context is the tag itself (particularly its id), that is not lost during the transaction.
+            // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. The context is the tag itself (particularly its id), that can't be lost during the transaction.
             (fun (_: TagsAggregate) -&gt;
                 fun (x': TagsAggregate) -&gt;
                     x'.RemoveTag t.Id 
@@ -389,7 +390,7 @@ So the actual undoer now available is ready to be executed and can return a list
 </code></pre>
 <p>Sources: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Commands.fs">Commands.fs</a>)</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
-<p>An application service layer provides services that actually uses Respository and Storage to get the state and/or send commands to one or more aggregates eventyally in an atomic/transactional way.</p>
+<p>An application service layer provides services that actually use Respository and Storage to get the state and/or send commands to one or more aggregates (eventually in an atomic/transactional way with potential issues already discussed).</p>
 <p>Here is one of the simplest example of an entry for a services involving a single aggregate, by builing and running a AddTag command.</p>
 <pre><code class="language-FSharp">    member this.addTag tag =
         result {
@@ -401,7 +402,7 @@ So the actual undoer now available is ready to be executed and can return a list
         }
 </code></pre>
 <p>The service layer sends commands to the repository so that it can produce and store related events.</p>
-<p>The following example shows a service function that uses two aggregates and an explicit lock (note the lock object concept to handle transaction has been substituted by a mailboxprocessor based actor model).</p>
+<p>The following example shows a service function that uses two aggregates and an explicit lock (note that the lock object concept to handle transaction has been substituted by a mailboxprocessor based actor model. Still I'm not sure if the lock object approach deserved to be dismissed).</p>
 <p>I will show an example involving the new version right after this one.</p>
 <pre><code class="language-FSharp">    member this.addTodo todo =
         lock TagsAggregate.LockObj &lt;| fun () -&gt;
@@ -422,7 +423,7 @@ So the actual undoer now available is ready to be executed and can return a list
         }
 </code></pre>
 <p>The todo can be added only if it contains valid tag references.</p>
-<p>Now I am showing how I decided to deal with the same issue by using the mailboxprocessor, part of FSharp core library, that allows to process messages in a single thread.</p>
+<p>Now I am showing how I decided to deal with the same issue of making the code safe  (transactional) by using the mailboxprocessor, part of FSharp core library, that allows to process messages in a single thread.</p>
 <pre><code class="language-FSharp">        member this.AddTodo todo =
             let f = fun () -&gt;
                 ResultCE.result {
@@ -448,11 +449,12 @@ So the actual undoer now available is ready to be executed and can return a list
             }
             |&gt; Async.RunSynchronously
 </code></pre>
-<p>The entire expression is wrapped in an async block and the processor.PostAndReply function is used to send the function f to the mailboxprocessor and wait for the result.</p>
+<p>The entire expression is wrapped in an async block and the processor.PostAndReply function is used to send the function f to the processor and wait for the result.</p>
 <p>This approach is extremely simple and effective but may slow down the processing of commands if the aggregate is involved in a long running transaction.</p>
-<p>In some cases we may prefer explicit locks, in some cases it could be more convenient to use the mailboxprocessor and in other cases we may not use any lock at all!</p>
-<p>Consider for example the addTodo:  if you do it without any locking and wighout any single thread mailboxprocessor based action, then you may end up with in inconsistencies like storing an event that is actually invalid (because the todo contains an invalid tag, or the todo is duplicated).
-In that case the event is stored by given that it is inconsistent, it will be ignored when the aggregate will be rebuilt.</p>
+<p>In some cases we may rather try to reuse explicit locks, in some cases it could be more convenient to use the mailboxprocessor and in other cases we may not use any lock at all!</p>
+<p>Consider for example the addTodo: if run it without any locking and without any single thread mailboxprocessor based action, then you may end up to an inconsistent state: you may store an event that is actually invalid (because the todo contains an invalid tag, or the todo is duplicated).
+In that case the event is stored by given that it is inconsistent, it will be ignored when the aggregate will be rebuilt.
+This process can be simply described as &quot;no lock = optimistic lock&quot;.</p>
 <p>Another example is the following, about sending commands to more aggregates.
 This code removes the tag with any reference to it. It build two commands and make the repository process them at the same tim.
 This code remove a tag and any reference to it.</p>
@@ -471,8 +473,9 @@ In the case the storage does not support multiple streams transactions (i.e. Eve
 <p>The repository has the responsibility of:</p>
 <ul>
 <li>getting the state of an aggregate</li>
-<li>trying to run commands passed, and eventually storing the related events.</li>
-<li>making periodic snapshots, according to the SnapshotsInterval parameter of the aggregate.</li>
+<li>trying to run commands passed, and eventually storing the related events returned by the command.</li>
+<li>making periodic snapshots, according to the SnapshotsInterval parameter of the aggregate.
+(remember tht snapshots are explicitly used only in the Postgres and InMemory storage implementations)</li>
 </ul>
 <p>Here an example of the private member that retrieve the last snapshot:</p>
 <pre><code class="language-FSharp">    let inline private getLastSnapshot&lt;'A 
@@ -493,7 +496,7 @@ In the case the storage does not support multiple streams transactions (i.e. Eve
             return result
         }
 </code></pre>
-<p>This function use the storage to retrieve a triple of the snapshotId, the related eventId and the snapshot itself, serialized as json.
+<p>This function uses the storage to retrieve a triple of the snapshotId, the related eventId and the snapshot itself, serialized as json.
 Note that the snapshot may be cached in memory, so that the deserialization is done only once.</p>
 <p>To get the current state of an aggregate we need to get the last snapshot and the events that are after the snapshot.</p>
 <p>Here is an older version of how to get the state:</p>
@@ -529,7 +532,7 @@ Note that the snapshot may be cached in memory, so that the deserialization is d
             return (lastEventId, result)
         }
 </code></pre>
-<p>Now I am showing how it is working in a way that the current state can also be cached.</p>
+<p>Now I show the current implementation that enable the aggregate-state caching:</p>
 <pre><code class="language-FSharp">    let inline getState&lt;'A, 'E
         when 'A: (static member Zero: 'A)
         and 'A: (static member StorageName: string)
@@ -570,9 +573,11 @@ Note that the snapshot may be cached in memory, so that the deserialization is d
             |&gt; Async.RunSynchronously
         StateCache&lt;'A&gt;.Instance.Memoize (fun () -&gt; eventuallyFromCache()) (lastEventId, 'A.StorageName)
 </code></pre>
-<p>In the above code, the state is function of the event stream, and so we can use this eventId as the key of a cache that stores the state of the aggregate.</p>
-<p>Note that here the evolve function is used, which is part of the core library and is defined as follows:</p>
-<pre><code class="language-Fsharp">    let inline evolve&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; (h: 'A) (events: List&lt;'E&gt;) =
+<p>In the above code, the state is function of event id, and so we can use this eventId as the key of a cache that stores the state of the aggregate.</p>
+<p>Note that here the evolve function is used, which is part of the core library.</p>
+<p>There are actually two similar evolve implementation:</p>
+<p>the basic implementation of the evolve is the one that cannot forgive any inconsistency in the  events passed as parameters with the current aggregate state:</p>
+<pre><code class="language-Fsharp">    let inline evolveUNforgivingErrors&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; (h: 'A) (events: List&lt;'E&gt;) =
         events
         |&gt; List.fold
             (fun (acc: Result&lt;'A, string&gt;) (e: 'E) -&gt;
@@ -581,13 +586,39 @@ Note that the snapshot may be cached in memory, so that the deserialization is d
                     | Ok h -&gt; h |&gt; e.Process
             ) (h |&gt; Ok)
 </code></pre>
+<p>The previous version is not used to process stored events because, beside the in memory or postgres storage that are able to preserve consistency of the events stored (i.e. if the event are there then they must be consistent), there is the possibility of inconsistencies in the events that are stored in a general case by using directly the EventStoreDb or a message broker system.</p>
+<p>Here an implementation of the evolve that skip eventual inconsistent events:</p>
+<pre><code class="language-Fsharp">    let inline evolve&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; (h: 'A) (events: List&lt;'E&gt;): Result&lt;'A, string&gt; =
+        let rec evolveSkippingErrors (acc: Result&lt;'A, string&gt;) (events: List&lt;'E&gt;) (guard: 'A) =
+            match acc, events with
+            | Error err, _::es -&gt; 
+                // you may want to print or log this
+                printf &quot;warning: %A\n&quot; err
+                evolveSkippingErrors (guard |&gt; Ok) es guard
+            | Error err, [] -&gt; 
+                // you may want to print or log this
+                printf &quot;warning: %A\n&quot; err
+                guard |&gt; Ok
+            | Ok state, e::es -&gt;
+                let newGuard = state |&gt; e.Process
+                match newGuard with
+                | Error err -&gt; 
+                    // use your favorite logging library here
+                    printf &quot;warning: %A\n&quot; err
+                    evolveSkippingErrors (guard |&gt; Ok) es guard
+                | Ok h' -&gt;
+                    evolveSkippingErrors (h' |&gt; Ok) es h'
+            | Ok h, [] -&gt; h |&gt; Ok
+
+        evolveSkippingErrors (h |&gt; Ok) events h
+</code></pre>
 <p>Code in <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Repository.fs">Repository.fs</a> and
 <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Core.fs">Core.fs</a></p>
 <p>There is also an experimental repository based on a publish/subscribe storage model (Eventstoredb).
 See lightrepository</p>
 <p><a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/LightRepository.fs">LightRepository.fs</a> </p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="storage"><a class="header" href="#storage">Storage</a></h1>
-<p>A storage stores and retrieves events and snapshots about any aggregate.</p>
+<p>A storage stores and retrieves events and snapshots related to each single aggregate.</p>
 <p>In a strict way storage ensures transactionality particularly in special cases like when adding events related to multiple aggregates.</p>
 <p>In a general sense there is the possibility of supporting storages that don't allow transactionality, and that is the case of the <em>EventStoreBridge</em> (or, in future, Kafa etc..)</p>
 <p>Here the abstract definition of members required for a storage:</p>
@@ -609,6 +640,7 @@ See lightrepository</p>
 It is still experimental.
 <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib.EventStore/EventStoreBridge.cs">EventStoreBridge.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="refactoring-strategy"><a class="header" href="#refactoring-strategy">Refactoring strategy</a></h1>
+<p>By aggregate refactoring I mean when we have the same models, the same application behavior and we just move  models from one aggregate to another.</p>
 <p>Here I am showing a strategy for refactoring aggregates in terms of:</p>
 <ul>
 <li>moving the models ownership between aggregates, </li>
@@ -616,8 +648,9 @@ It is still experimental.
 <li>upgrading old aggregates.</li>
 <li>dropping aggregates.</li>
 </ul>
-<p>It looks more convenient having few aggregate, in a development and prototyping stage because this will simplify testing, prototyping, building the application service layer.
-Consider that having everithing in a single aggregate would mean that the application service layer will be able to handle all the models with few lines of code (just building single command for the repository)</p>
+<p>The problem arise because it looks overcomplicated d to make upfront decision about aggregates.</p>
+<p>It looks to me more convenient having few aggregate, for instance in a development and prototyping stage because this will simplify testing, prototyping, building the application service layer.
+Consider the extreme when we have everithing in a single aggregate. It would mean that the application service layer will be able to handle all the models with few lines of code (just building single command for the repository)</p>
 <p>However, at a later stage, a proper refactoring is probably needed by moving models to different aggregates or creating new aggregates for performance reasons.</p>
 <p>Refactoring aggregates in that sense means leaving the application service layer behavior unchanged.</p>
 <p>The steps that may be followed are:</p>
