@@ -221,13 +221,16 @@ However, we may want to roll back the effect of those events by adding events th
 <pre><code class="language-Fsharp">    member this.Undoer = 
         match this with
         | RemoveTag g -&gt; 
-            // block to be executed before the actual command removing tag is executed. It will return another function with the context needed (the tag itself)
+            // block to be executed before the actual command removing tag 
+            // is executed. It will return another function with the context needed (the tag itself)
             (fun (x: TagsAggregate) -&gt;
                 result {
                     let! tag = x.GetTag g
                     let result =
 
-                        // block to be executed after the actual command removing tag is executed. It will return the list of events to be applied to the aggregate state to compensate the effect of the command. Note that the tag is the context needed to readd the tag to the aggregate state.
+                        // block to be executed after the actual command removing tag is executed.  
+                        // It will return the list of events to be applied to the aggregate state to compensate the effect of the command. 
+                        // Note that the tag is the context needed to readd the tag to the aggregate state.
 
                         fun (x': TagsAggregate) -&gt;
                             x'.AddTag tag 
@@ -237,7 +240,8 @@ However, we may want to roll back the effect of those events by adding events th
             )
             |&gt; Some
         | AddTag t -&gt;
-            // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. The context is the tag itself (particularly its id), that can't be lost during the transaction.
+            // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. 
+            // The context is the tag itself (particularly its id), that can't be lost during the transaction.
             (fun (_: TagsAggregate) -&gt;
                 fun (x': TagsAggregate) -&gt;
                     x'.RemoveTag t.Id 
@@ -247,7 +251,7 @@ However, we may want to roll back the effect of those events by adding events th
             |&gt; Some
 
 </code></pre>
-<p>Sources: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Commands.fs">Commands.fs</a>)</p>
+<p>Source code: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Commands.fs">Commands.fs</a>)</p>
 
                     </main>
 

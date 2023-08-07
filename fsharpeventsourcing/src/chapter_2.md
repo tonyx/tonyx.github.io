@@ -1,6 +1,6 @@
 # Aggregates
 
-An aggregate is an instance of a class (or more properly, a record) that handles one or more models. We will be able to recreate the state of the aggregate by processing the stored events by an essential function called _evolve_. Such   _events_ are closely related to some of the members of the aggregate. 
+An aggregate is an instance of a class (or more properly, a record) that handles one or more models. We will be able to recreate the state of the aggregate by processing the stored events by an essential function called _evolve_. Such _events_ are closely related to some of the members of the aggregate. 
 
 Given that the state of the aggregate is a function of the related events processed and stored, an aggregate needs the following information associated that I defined as mandatory, static members:
 
@@ -8,7 +8,7 @@ Given that the state of the aggregate is a function of the related events proces
 It is needed to be able to provide the state of the aggregate when there is no event stored related to that aggregate.
 - __StorageName__ and  __Version__: this combination uniquely identifies the aggregate and lets the storage know in which stream to store events and snapshots.
 
-- - __LockObject__: (_warning: the lockobject concept is obsolete. It was meant to handle single-thread processing but at the moment I am providing an actor model based mailboxprocessor to ensure single-thread chain command->events->eventstoring, so you will skip this part_). Before introducing the _mailboxprocessor_ (i.e. an actor model based single thread message processor), the repository was supposed to use aggregate locks while processing commands and storing related events ensuring consistency. An application layer was also supposed to use them explicitly to ensure inter-aggregate integrity (invariant conditions involving models handled by separate aggregates).
+- - __LockObject__: (_warning: the lockobject concept is obsolete. It was meant to handle single-thread processing but at the moment I am providing an actor model based mailboxprocessor to ensure single-thread chain command->events->eventstoring, so you will skip this part_). Before introducing the _mailboxprocessor_ (i.e. an actor model single thread message processor), the repository was supposed to use aggregate locks while processing commands and storing related events ensuring consistency. An application layer was also supposed to use them explicitly to ensure inter-aggregate integrity (invariant conditions involving models handled by separate aggregates).
 - __SnapshotsInterval__: the number of the events that can be stored after a snapshot before creating a new snapshot (i.e. the number of events between snapshots)
 
 Note that in the _in memory_ or _Postgres_ storage implementation the state of any aggregate is rebuilt starting from the last available snapshot and applying the events that are after the snapshot.
@@ -59,4 +59,4 @@ Example:
 ```
 Recap: we can protect invariant conditions related to models that are part of the same aggregate without the need for any explicit transaction because at that level there is no awareness of the storage. Still, we can protect other invariant conditions that may involve models residing in different aggregates anyway in a different way:  at the service application layer (see in the next sections).
 
-Source: [TodosAggregate.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Aggregate.fs)
+Source code: [TodosAggregate.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Aggregate.fs)

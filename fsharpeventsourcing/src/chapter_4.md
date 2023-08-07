@@ -103,13 +103,16 @@ From the code with some comments:
     member this.Undoer = 
         match this with
         | RemoveTag g -> 
-            // block to be executed before the actual command removing tag is executed. It will return another function with the context needed (the tag itself)
+            // block to be executed before the actual command removing tag 
+            // is executed. It will return another function with the context needed (the tag itself)
             (fun (x: TagsAggregate) ->
                 result {
                     let! tag = x.GetTag g
                     let result =
 
-                        // block to be executed after the actual command removing tag is executed. It will return the list of events to be applied to the aggregate state to compensate the effect of the command. Note that the tag is the context needed to readd the tag to the aggregate state.
+                        // block to be executed after the actual command removing tag is executed.  
+                        // It will return the list of events to be applied to the aggregate state to compensate the effect of the command. 
+                        // Note that the tag is the context needed to readd the tag to the aggregate state.
 
                         fun (x': TagsAggregate) ->
                             x'.AddTag tag 
@@ -119,7 +122,8 @@ From the code with some comments:
             )
             |> Some
         | AddTag t ->
-            // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. The context is the tag itself (particularly its id), that can't be lost during the transaction.
+            // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. 
+            // The context is the tag itself (particularly its id), that can't be lost during the transaction.
             (fun (_: TagsAggregate) ->
                 fun (x': TagsAggregate) ->
                     x'.RemoveTag t.Id 
@@ -131,7 +135,6 @@ From the code with some comments:
 ```
 
 
-
-Sources: [Commands.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Commands.fs))
+Source code: [Commands.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Commands.fs))
 
 

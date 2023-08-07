@@ -48,5 +48,5 @@ Having said that about caching, I am warning that caching events don't look so m
 Therefore event Caching is disabled by default. See "EVENTS_CACHING_ENABLED" in the project file: [project file](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/Sharpino.Lib.fsproj)
  To enable the caching of events, the library must be compiled with the following compilation symbol: `EVENTS_CACHING_ENABLED`.
 
-Source:  [Events.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Events.fs)
+Source code:  [Events.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Events.fs)
 

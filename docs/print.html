@@ -149,13 +149,13 @@
 <p><a href="https://github.com/tonyx/Micro_ES_FSharp_Lib">Sharpino</a> is a simple F# event sourcing framework.
 It is a project for study and for experimenting.
 At the moment (2023-08-06) it supports <em>in memory</em> and <em>postgres</em> storages.
-There is also an experimental support for eventstoredb.</p>
-<p>Here I am giving a quick overview to how it works, how the sample application works (from models to application service layer and without any user interface) and how to handle aggregate refactoring.</p>
+There is also an experimental support for <em>EventstoreDB</em>.</p>
+<p>Here I am giving a quick overview of how it works, how the sample application works (from models to the application service layer and without any user interface) and how to handle aggregate refactoring.</p>
 <h2 id="the-sample-application"><a class="header" href="#the-sample-application">The sample application</a></h2>
 <p>The sample application is a simple todo list manager where each todo contains reference to Tags and Categories.
 There are two version of the same application that use different aggregate configurations.</p>
 <p>The &quot;version 1&quot; has an Aggregate managing Todo and Categories, and another aggregate managing Tags.</p>
-<p>The &quot;version 2&quot; of the application consists in three different aggregates: one for the Todo model, one for the Categories model, and another one for the Tags model.</p>
+<p>The &quot;version 2&quot; of the application consists to three different aggregates: one for the Todo model, one for the Categories model, and another one for the Tags model.</p>
 <p>The challenge is that you can write parametric tests that can be executed against the current and the next aggregate configuration, also by testing the migration function.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="models"><a class="header" href="#models">Models</a></h1>
 <p>In <strong>Sharpino</strong> the models are collections of entities.
@@ -187,7 +187,7 @@ In that case, we would define the &quot;Todo&quot;, the &quot;Tag&quot; and the 
 (See Fable remoting for more information about that).</p>
 <p>Source: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/models/TodosModel.fs">TodosModel.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="aggregates"><a class="header" href="#aggregates">Aggregates</a></h1>
-<p>An aggregate is an instance of a class (or more properly, a record) that handles one or more models. We will be able to recreate the state of the aggregate by processing the stored events by an essential function called <em>evolve</em>. Such   <em>events</em> are closely related to some of the members of the aggregate. </p>
+<p>An aggregate is an instance of a class (or more properly, a record) that handles one or more models. We will be able to recreate the state of the aggregate by processing the stored events by an essential function called <em>evolve</em>. Such <em>events</em> are closely related to some of the members of the aggregate. </p>
 <p>Given that the state of the aggregate is a function of the related events processed and stored, an aggregate needs the following information associated that I defined as mandatory, static members:</p>
 <ul>
 <li>
@@ -199,7 +199,7 @@ It is needed to be able to provide the state of the aggregate when there is no e
 </li>
 <li>
 <ul>
-<li><strong>LockObject</strong>: (<em>warning: the lockobject concept is obsolete. It was meant to handle single-thread processing but at the moment I am providing an actor model based mailboxprocessor to ensure single-thread chain command-&gt;events-&gt;eventstoring, so you will skip this part</em>). Before introducing the <em>mailboxprocessor</em> (i.e. an actor model based single thread message processor), the repository was supposed to use aggregate locks while processing commands and storing related events ensuring consistency. An application layer was also supposed to use them explicitly to ensure inter-aggregate integrity (invariant conditions involving models handled by separate aggregates).</li>
+<li><strong>LockObject</strong>: (<em>warning: the lockobject concept is obsolete. It was meant to handle single-thread processing but at the moment I am providing an actor model based mailboxprocessor to ensure single-thread chain command-&gt;events-&gt;eventstoring, so you will skip this part</em>). Before introducing the <em>mailboxprocessor</em> (i.e. an actor model single thread message processor), the repository was supposed to use aggregate locks while processing commands and storing related events ensuring consistency. An application layer was also supposed to use them explicitly to ensure inter-aggregate integrity (invariant conditions involving models handled by separate aggregates).</li>
 </ul>
 </li>
 <li>
@@ -248,7 +248,7 @@ It uses the &quot;result&quot; computational expression included in the FsToolki
             }
 </code></pre>
 <p>Recap: we can protect invariant conditions related to models that are part of the same aggregate without the need for any explicit transaction because at that level there is no awareness of the storage. Still, we can protect other invariant conditions that may involve models residing in different aggregates anyway in a different way:  at the service application layer (see in the next sections).</p>
-<p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Aggregate.fs">TodosAggregate.fs</a></p>
+<p>Source code: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Aggregate.fs">TodosAggregate.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="events"><a class="header" href="#events">Events</a></h1>
 <p>As I said before, some members of an aggregate act as &quot;state changers&quot;, operating add/update/delete on one or more of its models. 
 Each aggregate has an associated Event type and such event type is a Discriminated Union (Du) type with a case associated with &quot;state changer&quot; members of the aggregate.</p>
@@ -286,7 +286,7 @@ Each aggregate has an associated Event type and such event type is a Discriminat
 <p>Having said that about caching, I am warning that caching events don't look so much like a &quot;performance booster&quot;. It looks more promising the caching of the state of the aggregate (see the next section).</p>
 <p>Therefore event Caching is disabled by default. See &quot;EVENTS_CACHING_ENABLED&quot; in the project file: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/Sharpino.Lib.fsproj">project file</a>
 To enable the caching of events, the library must be compiled with the following compilation symbol: <code>EVENTS_CACHING_ENABLED</code>.</p>
-<p>Source:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Events.fs">Events.fs</a></p>
+<p>Source code:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Events.fs">Events.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
 <p>We define a command type for each aggregate.
 A Command type is a Discriminated Union. Executing the command means returning a list of events or an error.
@@ -364,13 +364,16 @@ However, we may want to roll back the effect of those events by adding events th
 <pre><code class="language-Fsharp">    member this.Undoer = 
         match this with
         | RemoveTag g -&gt; 
-            // block to be executed before the actual command removing tag is executed. It will return another function with the context needed (the tag itself)
+            // block to be executed before the actual command removing tag 
+            // is executed. It will return another function with the context needed (the tag itself)
             (fun (x: TagsAggregate) -&gt;
                 result {
                     let! tag = x.GetTag g
                     let result =
 
-                        // block to be executed after the actual command removing tag is executed. It will return the list of events to be applied to the aggregate state to compensate the effect of the command. Note that the tag is the context needed to readd the tag to the aggregate state.
+                        // block to be executed after the actual command removing tag is executed.  
+                        // It will return the list of events to be applied to the aggregate state to compensate the effect of the command. 
+                        // Note that the tag is the context needed to readd the tag to the aggregate state.
 
                         fun (x': TagsAggregate) -&gt;
                             x'.AddTag tag 
@@ -380,7 +383,8 @@ However, we may want to roll back the effect of those events by adding events th
             )
             |&gt; Some
         | AddTag t -&gt;
-            // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. The context is the tag itself (particularly its id), that can't be lost during the transaction.
+            // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. 
+            // The context is the tag itself (particularly its id), that can't be lost during the transaction.
             (fun (_: TagsAggregate) -&gt;
                 fun (x': TagsAggregate) -&gt;
                     x'.RemoveTag t.Id 
@@ -390,7 +394,7 @@ However, we may want to roll back the effect of those events by adding events th
             |&gt; Some
 
 </code></pre>
-<p>Sources: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Commands.fs">Commands.fs</a>)</p>
+<p>Source code: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Commands.fs">Commands.fs</a>)</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
 <p>An application service layer provides services that use Repository and Storage to get the state and/or send commands to one or more aggregates (eventually in an atomic/transactional way with potential issues already discussed).</p>
 <p>Here is one of the simplest examples of an entry for a service involving a single aggregate, by building and running an AddTag command.</p>
