@@ -2,7 +2,7 @@
 
 In Sharpino models are collections of entities.
 Usually a model contains references to elements of other models only indirectly, for example by including their ids.
-However there can be exceptions when the model are closely related: for instance you may find convenient to define a model for orders and define a model for orderitems at the same place, so that orders can contain direct reference to orderitems instead of referencing them by their ids.
+However there can be exceptions when some models are closely related: for instance you may find convenient to define a model for orders and define a model for orderitems in the same place, so that orders will be able to contain direct reference to orderitems instead of referencing them by their ids.
 
 A Simple model for todo items:
 
