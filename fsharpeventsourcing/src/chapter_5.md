@@ -25,7 +25,7 @@ I will show an example involving the new version right after this one.
 ```FSharp
     member this.addTodo todo =
         lock TagsAggregate.LockObj <| fun () ->
-            ResultCE.result {
+            result {
                 let! (_, tagState) = getState<TagsAggregate, TagEvent>(storage)
                 let tagIds = tagState.GetTags() |>> (fun x -> x.Id)
 
@@ -34,12 +34,11 @@ I will show an example involving the new version right after this one.
                     todo.TagIds |> List.forall (fun x -> (tagIds |> List.contains x)))
                     |> boolToResult "A tag reference contained is in the todo is related to a tag that does not exist"
 
-                let! _ =
+                return! 
                     todo
                     |> TodoCommand.AddTodo
                     |> (runCommand<TodosAggregate, TodoEvent> storage)
-            return ()
-        }
+            }
 ```
 
 The todo can be added only if it contains valid tag references.

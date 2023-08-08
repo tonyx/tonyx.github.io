@@ -412,7 +412,7 @@ However, we may want to roll back the effect of those events by adding events th
 <p>I will show an example involving the new version right after this one.</p>
 <pre><code class="language-FSharp">    member this.addTodo todo =
         lock TagsAggregate.LockObj &lt;| fun () -&gt;
-            ResultCE.result {
+            result {
                 let! (_, tagState) = getState&lt;TagsAggregate, TagEvent&gt;(storage)
                 let tagIds = tagState.GetTags() |&gt;&gt; (fun x -&gt; x.Id)
 
@@ -421,12 +421,11 @@ However, we may want to roll back the effect of those events by adding events th
                     todo.TagIds |&gt; List.forall (fun x -&gt; (tagIds |&gt; List.contains x)))
                     |&gt; boolToResult &quot;A tag reference contained is in the todo is related to a tag that does not exist&quot;
 
-                let! _ =
+                return! 
                     todo
                     |&gt; TodoCommand.AddTodo
                     |&gt; (runCommand&lt;TodosAggregate, TodoEvent&gt; storage)
-            return ()
-        }
+            }
 </code></pre>
 <p>The todo can be added only if it contains valid tag references.</p>
 <p>Now I am showing how I decided to deal with the same issue of making the code safe  (transactional) by using the mailboxprocessor, part of FSharp core library, that allows processing messages in a single thread.</p>
