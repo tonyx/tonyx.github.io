@@ -2,8 +2,8 @@
 
 [Sharpino](https://github.com/tonyx/Micro_ES_FSharp_Lib) is a simple F# event sourcing framework.
 It is a project for study and for experimenting.
-At the moment (2023-08-06) it supports _in memory_ and _Postgres_ storages.
-There is also an experimental support for _EventstoreDB_.
+At the moment (2023-08-06) it supports _in memory_ and _Postgres_ storage.
+There is also experimental support for _EventstoreDB_.
 
 Here I am giving a quick overview of how it works, how the sample application works (from models to the application service layer and without any user interface) and how to handle aggregate refactoring.
 
