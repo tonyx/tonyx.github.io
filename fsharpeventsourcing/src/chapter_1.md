@@ -1,11 +1,11 @@
-# Models
+# Entities
 
-In __Sharpino__ the models are collections of entities.
-The general case is that a model contains no direct reference to any other model but may reference them by their id. So for instance a todo may contain a list of tag ids and a list of category ids.
-This is the general case because it is the most flexible one: you can change the model without any need to change the other models.
-However there can be exceptions for models that are closely related: for instance, you may rather define a model for orders and a model for order items in the same place so that any orders can contain a direct reference to order items instead of the id of order items.
+With __Sharpino__ we essentially manage collections of entities. We can view them simply as the concept of tables we are used to in relational databases.
+The general case is that any entity contains no direct reference to any other entity but may reference them by their id. So for instance a todo may contain a list of tag ids and a list of category ids.
+This is the general case because it is the most flexible one: you can change the entity definition without any need to change the definition of other entities.
+However there can be exceptions for models that are closely related: for instance, you may rather define an _order_ entity and an _order item_ entity in the same place so that any orders can contain a direct reference to order items instead of the id of order items.
 
-Here there is a simple model of the todo items:
+Here there is the todo entity definition:
 
 ```FSharp
     type Todo =

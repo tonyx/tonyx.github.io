@@ -1,7 +1,7 @@
 # Summary
 
 - [Introduction](./intro.md)
-- [Models](./chapter_1.md)
+- [Entities](./chapter_1.md)
 - [Aggregates](./chapter_2.md)
 - [Events](./chapter_3.md)
 - [Commands](./chapter_4.md)
