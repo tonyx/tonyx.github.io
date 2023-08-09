@@ -9,3 +9,4 @@
 - [Repository](./chapter_6.md)
 - [Storage](./chapter_7.md)
 - [Refactoring](./chapter_8.md)
+- [Testing](./chapter_9.md)

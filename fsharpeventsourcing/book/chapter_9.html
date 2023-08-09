@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found</title>
-        <base href="/">
+        <title>Testing</title>
 
 
         <!-- Custom HTML head -->
@@ -84,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_1.html"><strong aria-hidden="true">2.</strong> Entities</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">3.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">4.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">5.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">6.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">7.</strong> Repository</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">8.</strong> Storage</a></li><li class="chapter-item expanded "><a href="chapter_8.html"><strong aria-hidden="true">9.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html"><strong aria-hidden="true">10.</strong> Testing</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_1.html"><strong aria-hidden="true">2.</strong> Entities</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">3.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">4.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">5.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">6.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">7.</strong> Repository</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">8.</strong> Storage</a></li><li class="chapter-item expanded "><a href="chapter_8.html"><strong aria-hidden="true">9.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html" class="active"><strong aria-hidden="true">10.</strong> Testing</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -145,13 +144,53 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
+<p>As I mentioned in the previous chapter we may have different versions of the same application based on different distribution of entities and aggregates and/or different storages.</p>
+<p>We may want to test all of them and also we may want to test the migration function from one version to another in those tests.
+A structure of a parametric test that considers various possible combinations of application versions and migration function is the following:</p>
+<pre><code class="language-FSharp">
+        multipleTestCase &quot;test something &quot; versions &lt;| fun (ap, apUpgd, migrator)  -&gt;
+            let _ = ap._reset()
+
+            // test something on ap, which is the &quot;initial version&quot; 
+            // of the application
+            .....
+
+            // then migrate from &quot;ap&quot; version to apUpgd version 
+            // using its migrator function
+
+            let migrated = migrator()
+            Expect.isOk migrated &quot;should be ok&quot;
+
+            // test something on apUpgd, which is the &quot;upgraded version&quot; of the application
+
+</code></pre>
+<p>In some cases, you just want to run your tests fast and you don't want to test everything against all the possible combinations of application versions.</p>
+<p>Then you may just skip some of the versions set up in the &quot;version&quot; triples <strong>(initversion, endversion, migrator)</strong> by commenting out temporarily the ones you don't want to spend time to test at the moment:</p>
+<pre><code class="language-FSharp">let allVersions =
+    [
+
+        // (AppVersions.currentPostgresApp,        AppVersions.currentPostgresApp,     fun () -&gt; () |&gt; Result.Ok)
+        // (AppVersions.upgradedPostgresApp,       AppVersions.upgradedPostgresApp,    fun () -&gt; () |&gt; Result.Ok)
+        // (AppVersions.currentPostgresApp,        AppVersions.upgradedPostgresApp,    AppVersions.currentPostgresApp._migrator.Value)
+
+        (AppVersions.currentMemoryApp,          AppVersions.currentMemoryApp,       fun () -&gt; () |&gt; Result.Ok)
+        // (AppVersions.upgradedMemoryApp,         AppVersions.upgradedMemoryApp,      fun () -&gt; () |&gt; Result.Ok)
+        // (AppVersions.currentMemoryApp,          AppVersions.upgradedMemoryApp,      AppVersions.currentMemoryApp._migrator.Value)
+
+        // (AppVersions.evSApp,                    AppVersions.evSApp,                 fun () -&gt; () |&gt; Result.Ok)
+    ]
+
+</code></pre>
+<p>The above code enables only the tests of the current version of the app that uses the in-memory storage.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="chapter_8.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
 
 
                         <div style="clear: both"></div>
@@ -160,6 +199,9 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="chapter_8.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
 
             </nav>
 
