@@ -145,7 +145,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="aggregates"><a class="header" href="#aggregates">Aggregates</a></h1>
-<p>An aggregate is an instance of a class (or more properly, a record) that handles one or more models. We will be able to recreate the state of the aggregate by processing the stored events by an essential function called <em>evolve</em>. Such <em>events</em> are closely related to some of the members of the aggregate. </p>
+<p>An aggregate is an instance of a class (or more properly, a record) that handles one or more models. We will be able to recreate the state of the aggregate by processing the stored events by the  <em>evolve</em> function. As we will see later, the <em>events</em> are closely related to some of the members of the aggregate. </p>
 <p>Given that the state of the aggregate is a function of the related events processed and stored, an aggregate needs the following information associated that I defined as mandatory, static members:</p>
 <ul>
 <li>
@@ -157,15 +157,15 @@ It is needed to be able to provide the state of the aggregate when there is no e
 </li>
 <li>
 <ul>
-<li><strong>LockObject</strong>: (<em>warning: the lockobject concept is obsolete. It was meant to handle single-thread processing but at the moment I am providing an actor model based mailboxprocessor to ensure single-thread chain command-&gt;events-&gt;eventstoring, so you will skip this part</em>). Before introducing the <em>mailboxprocessor</em> (i.e. an actor model single thread message processor), the repository was supposed to use aggregate locks while processing commands and storing related events ensuring consistency. An application layer was also supposed to use them explicitly to ensure inter-aggregate integrity (invariant conditions involving models handled by separate aggregates).</li>
+<li><strong>LockObject</strong>: (<em>warning: the lockobject concept is obsolete. It was meant to handle single-thread processing but at the moment I am providing an actor model based mailboxprocessor to ensure single-thread chain command-&gt;events-&gt;eventstoring, so you will skip this part</em>). Before introducing the <em>mailboxprocessor</em> (i.e. an actor model single thread message processor), the repository was supposed to use aggregate locks while processing commands and storing related events ensuring consistency using pessimistic locking. An application layer was also supposed to use them explicitly to ensure inter-aggregate integrity (invariant conditions involving models handled by separate aggregates).</li>
 </ul>
 </li>
 <li>
 <p><strong>SnapshotsInterval</strong>: the number of the events that can be stored after a snapshot before creating a new snapshot (i.e. the number of events between snapshots)</p>
 </li>
 </ul>
-<p>Note that in the <em>in memory</em> or <em>Postgres</em> storage implementation the state of any aggregate is rebuilt starting from the last available snapshot and applying the events that are after the snapshot.
-At the moment I have no specific strategy for handling snapshots and intervals between snapshots for the EventStoreDb. </p>
+<p>Note that in the <em>in memory</em> or <em>Postgres</em> storage implementations the state of any aggregate is rebuilt starting from the last available snapshot and applying the events that are after the snapshot.
+This strategy is slightly different in EventStore and CosmosDb implementations, and I am still working on it in separate branches.</p>
 <p>Example:</p>
 <pre><code class="language-FSharp">    type TodosAggregate =
         {
@@ -184,9 +184,9 @@ At the moment I have no specific strategy for handling snapshots and intervals b
         static member SnapshotsInterval =
             15
 </code></pre>
-<p>Some members of the aggregate virtually change the state of the aggregate in the sense that they return an instance of the aggregate in a different state or an error. It actually means that such members will <em>add/update/delete</em>  some of their models (still in a functional/immutable way i.e. returning the model with changes). Those members will be associated with aggregate <em>events</em> (see next section).
-In the following example, the aggregate of the Todos manages also the categories model and so it can check the validity of the categories referenced by a todo before adding it (to preserve the rule that you can add only todo with category-Ids related to existing categories).
-It uses the &quot;result&quot; computational expression included in the FsToolkit.ErrorHandling library supports the possibility to handle errors in a <em>railway-oriented programming</em> style.</p>
+<p>Some members of the aggregate virtually change the state of the aggregate in the sense that they return an instance of the aggregate in a different state or an error. It means that such members will <em>add/update/delete</em>  some of their entities (still in a functional/immutable way i.e. returning a new collection with some changes). Those members will be associated with aggregate <em>events</em> (see next section).
+In the following example, the aggregate of the Todos manages also the categories, so it will be able to check the validity of the categories referenced by a todo before adding it (to preserve the rule that you can add only todo with category-Ids related to existing categories).
+It uses the &quot;result&quot; computational expression included in the FsToolkit.ErrorHandling library which supports the <a href="https://fsharpforfunandprofit.com/rop/"><em>railway-oriented programming</em></a> style of handling errors.</p>
 <p>Example:</p>
 <pre><code class="language-FSharp">    member this.AddTodo (t: Todo) =
         let checkCategoryExists (c: Guid ) =
@@ -205,7 +205,7 @@ It uses the &quot;result&quot; computational expression included in the FsToolki
                     }
             }
 </code></pre>
-<p>Recap: we can protect invariant conditions related to models that are part of the same aggregate without the need for any explicit transaction because at that level there is no awareness of the storage. Still, we can protect other invariant conditions that may involve models residing in different aggregates anyway in a different way:  at the service application layer (see in the next sections).</p>
+<p>Wrap-up: we can protect invariant conditions related to models that are part of the same aggregate without the need for any explicit transaction because at that level there is no awareness of the storage. Still, I will show that we can protect other invariant conditions that may involve models residing in different aggregates at the service application layer (see in the next sections) running commands involving multiple streams.</p>
 <p>Source code: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Aggregate.fs">TodosAggregate.fs</a></p>
 
                     </main>

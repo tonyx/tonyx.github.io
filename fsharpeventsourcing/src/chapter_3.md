@@ -1,9 +1,9 @@
 # Events
 
 As I said before, some members of an aggregate act as "state changers", operating add/update/delete on one or more of its models. 
-Each aggregate has an associated Event type and such event type is a Discriminated Union (Du) type with a case associated with "state changer" members of the aggregate.
+Each aggregate has events and commands as discriminated unions (DU).
 
-An event type can be defined, in the abstract, as something that, when processed, returns a new state of the aggregate or an error, which fits the following definition:
+An event is something that, when processed, returns a new state of the aggregate or an error, which fits the following definition:
 
 ```FSharp
     type Event<'A> =

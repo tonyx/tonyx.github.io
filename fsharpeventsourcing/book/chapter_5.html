@@ -205,8 +205,8 @@
 </code></pre>
 <p>The entire expression is wrapped in an async block and the processor.PostAndReply function is used to send the function f to the processor and wait for the result.</p>
 <p>This approach is effective because ensures single-thread processing but may slow down the processing of commands if the aggregate is involved in a long-running transaction.</p>
-<p>In some cases we may rather try to go back to explicit locks, it could be more convenient to use the mailboxprocessor and in other cases, we may not use any sync mechanism at all!</p>
-<p>If the problem is that the order is not preserved the fact that two &quot;todoAdded&quot; events are stored in a different order than how they are produced nobody cares. are actually.</p>
+<p>In some cases we may rather try to go back to explicit locks, it could be more convenient to use the mailboxprocessor and in other cases, we may not use any sync mechanism at all!
+So basically I used the mailboxprocessor to ensure single-thread processing only as an example but I am pretty sure we may handle it differently for instance by using an optimistic strategy for handling conflicts. The worst that may happen is that unconsistent events (i.e. two &quot;todo added&quot; having the same name) are stored and that will simply ignored by the &quot;evolve&quot; function.</p>
 <p>At worst the event stored will be inconsistent and skipped by the &quot;evolve&quot;. So the &quot;no lock&quot; solution is a sort of optimistic locking that works in many cases. </p>
 <p>Another example is the following, about sending commands to more aggregates.
 This code removes the tag with any reference to it. It builds two commands and makes the repository process them at the same time.

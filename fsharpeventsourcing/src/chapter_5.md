@@ -77,8 +77,7 @@ The entire expression is wrapped in an async block and the processor.PostAndRepl
 This approach is effective because ensures single-thread processing but may slow down the processing of commands if the aggregate is involved in a long-running transaction.
 
 In some cases we may rather try to go back to explicit locks, it could be more convenient to use the mailboxprocessor and in other cases, we may not use any sync mechanism at all!
-
-If the problem is that the order is not preserved the fact that two "todoAdded" events are stored in a different order than how they are produced nobody cares. are actually.
+So basically I used the mailboxprocessor to ensure single-thread processing only as an example but I am pretty sure we may handle it differently for instance by using an optimistic strategy for handling conflicts. The worst that may happen is that unconsistent events (i.e. two "todo added" having the same name) are stored and that will simply ignored by the "evolve" function.
 
 At worst the event stored will be inconsistent and skipped by the "evolve". So the "no lock" solution is a sort of optimistic locking that works in many cases. 
 

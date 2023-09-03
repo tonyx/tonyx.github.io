@@ -1,8 +1,7 @@
 # Entities
 
 With __Sharpino__ we essentially manage collections of entities. We can view them simply as the concept of tables we are used to in relational databases.
-The general case is that any entity contains no direct reference to any other entity but may reference them by their id. So for instance a todo may contain a list of tag ids and a list of category ids.
-This is the general case because it is the most flexible one: you can change the entity definition without any need to change the definition of other entities.
+In general, any entity has no direct reference to any other entity but may reference them by their id. So for instance a todo may contain a list of tag ids and a list of category ids.
 However there can be exceptions for models that are closely related: for instance, you may rather define an _order_ entity and an _order item_ entity in the same place so that any orders can contain a direct reference to order items instead of the id of order items.
 
 Here there is the todo entity definition:

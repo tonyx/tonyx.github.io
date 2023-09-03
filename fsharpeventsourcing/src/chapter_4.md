@@ -1,7 +1,7 @@
 # Commands
 
 We define a command type for each aggregate.
-A Command type is a Discriminated Union. Executing the command means returning a list of events or an error.
+A Command type is a Discriminated Union. Executing the command means returning a proper list of events or an error.
 We have also _"command undoers"_, that allow us to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later.
 
 The abstract definitions of Command and Undoer  are:
@@ -59,7 +59,7 @@ It is possible, although uncommon, to have, for a command, cases that can return
             member this.Undoer
 
 ```
-Any command must ensure that it will return Ok (and therefore, one or more events) only if the events to be returned, when processed with the current aggregate state, give an Ok result, i.e. a valid aggregate state (and no error). 
+Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed with the current aggregate state, give an Ok result, i.e. a valid aggregate state (and no error). 
 For that reason, before returning the events, I invoked the "evolveUNforgivingErrors" function to "probe" the sequence of two events to be eventually returned. 
 The evolveUNforgivingErrors processes some events to a given state of the aggregate returning an error or a valid state.
 There is also a similar function _evolve_ which is more tolerant and will just skip events that, when processed give error, and can return a valid aggregate state anyway. 
@@ -90,7 +90,7 @@ Given the current state of the aggregate, the "command undoer" returns a functio
 
 So the undoers work in two shots: one to build a context for the eventual future undo, and one to actually... _do_ the _undo!_. 
 
-__A Concrete example__:
+__Example of "undoer"__ :
 
 The _RemoveTag_ command returns a list of TagRemoved events. We know that when those events are processed the result is the aggregate without the tags.
 However, we may want to roll back the effect of those events by adding events that reverse their effect.
