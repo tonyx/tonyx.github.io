@@ -28,6 +28,6 @@ An example of a storage implementation in Postgres: [DbStorage.fs](https://githu
 
 The alternative storage is the EventStoreBridge, which is a bridge to the EventStore database.
 It is still experimental.
-[EventStoreBridge.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib.EventStore/EventStoreBridge.cs)
+[EventStoreBridge.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/EventStoreStorage.fs).
 
 

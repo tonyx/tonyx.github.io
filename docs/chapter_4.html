@@ -146,8 +146,8 @@
                     <main>
                         <h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
 <p>We define a command type for each aggregate.
-A Command type is a Discriminated Union. Executing the command means returning a proper list of events or an error.
-We have also <em>&quot;command undoers&quot;</em>, that allow us to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later.</p>
+A Command type is concretely represented by a Discriminated Union. Executing the command on a specific aggregate means returning a proper list of events that can be applied (processed) to the aggregate or an error.
+We have also <em>&quot;command undoers&quot;</em>, that allow us to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the command.</p>
 <p>The abstract definitions of Command and Undoer  are:</p>
 <pre><code class="language-FSharp">
     type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
@@ -198,10 +198,11 @@ We have also <em>&quot;command undoers&quot;</em>, that allow us to compensate t
 <p>Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed with the current aggregate state, give an Ok result, i.e. a valid aggregate state (and no error). 
 For that reason, before returning the events, I invoked the &quot;evolveUNforgivingErrors&quot; function to &quot;probe&quot; the sequence of two events to be eventually returned. 
 The evolveUNforgivingErrors processes some events to a given state of the aggregate returning an error or a valid state.
-There is also a similar function <em>evolve</em> which is more tolerant and will just skip events that, when processed give error, and can return a valid aggregate state anyway. </p>
+There is also a similar function <em>evolve</em> which is more tolerant and will just skip events that, when processed give error, and can return a valid aggregate state anyway. 
+The way evolve can forgive inconsistent events is a form of optimistic locking: it lets to add any events to the storage even if they will end up in an inconsistent state. That means: you can avoid single thread, or locks in command processing.</p>
 <p>Commands can use event caching if it is enabled as we have seen in the previous section.</p>
 <h2 id="undoer"><a class="header" href="#undoer">Undoer</a></h2>
-<p>A command case in a command type definition may have associated an <em>undoer</em> which is similar to a command itself, but it is aimed to eventually do the &quot;reverse&quot; of a command, which means compensating the effect of a command in case such command is part of a multiple stream transaction that fails. We need the <em>undoer</em> only if the storage lack of multiple streams transactions (which is the case of EventStoreDb)</p>
+<p>I already mentioned that a command case in a command type definition may have associated an <em>undoer</em> which is similar to a command itself, but it is aimed to eventually do the &quot;reverse&quot; of a command, which means compensating the effect of a command in case such command is part of a multiple stream transaction that fails. We need the <em>undoer</em> only if the storage lack of multiple streams transactions (which is the case of EventStoreDb)</p>
 <pre><code class="language-FSharp">    type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
 </code></pre>
 <p>So, as a recap: when the repository uses storages like <em>in memory</em> or <em>Postgres</em>, it doesn't need any <em>undoer</em> because those storages support multiple stream transactions.

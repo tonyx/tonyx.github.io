@@ -147,7 +147,7 @@
                         <h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
 <p>As I mentioned in the previous chapter we may have different versions of the same application based on different distribution of entities and aggregates and/or different storages.</p>
 <p>We may want to test all of them and also we may want to test the migration function from one version to another in those tests.
-A structure of a parametric test that considers various possible combinations of application versions and migration function is the following:</p>
+A structure of a parametric test that considers various possible combinations of application versions and migration functions is the following:</p>
 <pre><code class="language-FSharp">
         multipleTestCase &quot;test something &quot; versions &lt;| fun (ap, apUpgd, migrator)  -&gt;
             let _ = ap._reset()

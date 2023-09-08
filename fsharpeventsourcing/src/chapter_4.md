@@ -1,8 +1,8 @@
 # Commands
 
 We define a command type for each aggregate.
-A Command type is a Discriminated Union. Executing the command means returning a proper list of events or an error.
-We have also _"command undoers"_, that allow us to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later.
+A Command type is concretely represented by a Discriminated Union. Executing the command on a specific aggregate means returning a proper list of events that can be applied (processed) to the aggregate or an error.
+We have also _"command undoers"_, that allow us to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the command.
 
 The abstract definitions of Command and Undoer  are:
 
@@ -63,12 +63,13 @@ Any command must ensure that it will return Result.Ok (and therefore, one or mor
 For that reason, before returning the events, I invoked the "evolveUNforgivingErrors" function to "probe" the sequence of two events to be eventually returned. 
 The evolveUNforgivingErrors processes some events to a given state of the aggregate returning an error or a valid state.
 There is also a similar function _evolve_ which is more tolerant and will just skip events that, when processed give error, and can return a valid aggregate state anyway. 
+The way evolve can forgive inconsistent events is a form of optimistic locking: it lets to add any events to the storage even if they will end up in an inconsistent state. That means: you can avoid single thread, or locks in command processing.
 
 Commands can use event caching if it is enabled as we have seen in the previous section.
 
 ## Undoer
 
-A command case in a command type definition may have associated an _undoer_ which is similar to a command itself, but it is aimed to eventually do the "reverse" of a command, which means compensating the effect of a command in case such command is part of a multiple stream transaction that fails. We need the _undoer_ only if the storage lack of multiple streams transactions (which is the case of EventStoreDb)
+I already mentioned that a command case in a command type definition may have associated an _undoer_ which is similar to a command itself, but it is aimed to eventually do the "reverse" of a command, which means compensating the effect of a command in case such command is part of a multiple stream transaction that fails. We need the _undoer_ only if the storage lack of multiple streams transactions (which is the case of EventStoreDb)
 
 ```FSharp
     type Undoer<'A, 'E when 'E :> Event<'A>> = 'A -> Result<List<'E>, string>

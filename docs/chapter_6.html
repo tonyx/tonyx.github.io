@@ -150,7 +150,7 @@
 <li>getting the state of an aggregate</li>
 <li>trying to run commands passed, and eventually storing the related events returned by the command.</li>
 <li>making periodic snapshots, according to the SnapshotsInterval parameter of the aggregate.
-(remember that snapshots are explicitly used only in the Postgres and in-memory storage implementations)</li>
+(Remember that snapshots are explicitly used only in the Postgres and in-memory storage implementations)</li>
 </ul>
 <p>Here is an example of the private member that retrieves the last snapshot:</p>
 <pre><code class="language-FSharp">    let inline private getLastSnapshot&lt;'A 
@@ -251,7 +251,7 @@ Note that the snapshot may be cached in memory so that the deserialization is do
 <p>In the above code, the state is a function of eventId, and so we can use this eventId as the key of a cache that stores the state of the aggregate.</p>
 <p>Note that here the evolve function is used, which is part of the core library.</p>
 <p>There are actually two similar evolve implementations:</p>
-<p>the basic implementation of the evolve is the one that cannot forgive any inconsistency in the  events passed as parameters with the current aggregate state:</p>
+<p>The basic implementation of the evolve is the one that cannot forgive any inconsistency in the  events passed as parameters with the current aggregate state:</p>
 <pre><code class="language-Fsharp">    let inline evolveUNforgivingErrors&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; (h: 'A) (events: List&lt;'E&gt;) =
         events
         |&gt; List.fold
@@ -261,7 +261,6 @@ Note that the snapshot may be cached in memory so that the deserialization is do
                     | Ok h -&gt; h |&gt; e.Process
             ) (h |&gt; Ok)
 </code></pre>
-<p>The previous version is not used to process stored events because, besides the in-memory or Postgres storage that is able to preserve the consistency of the events stored (i.e. if the event are there then they must be consistent), there is the possibility of inconsistencies in the events that are stored in a general case by using directly the EventStoreDb or a message broker system.</p>
 <p>Here is an implementation of the evolve that skips eventual inconsistent events:</p>
 <pre><code class="language-Fsharp">    let inline evolve&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; (h: 'A) (events: List&lt;'E&gt;): Result&lt;'A, string&gt; =
         let rec evolveSkippingErrors (acc: Result&lt;'A, string&gt;) (events: List&lt;'E&gt;) (guard: 'A) =

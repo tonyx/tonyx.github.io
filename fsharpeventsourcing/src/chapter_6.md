@@ -3,7 +3,7 @@ The repository has the responsibility of:
 - getting the state of an aggregate
 - trying to run commands passed, and eventually storing the related events returned by the command.
 - making periodic snapshots, according to the SnapshotsInterval parameter of the aggregate.
-(remember that snapshots are explicitly used only in the Postgres and in-memory storage implementations)
+(Remember that snapshots are explicitly used only in the Postgres and in-memory storage implementations)
 
 Here is an example of the private member that retrieves the last snapshot:
 
@@ -117,7 +117,7 @@ Note that here the evolve function is used, which is part of the core library.
 
 There are actually two similar evolve implementations:
 
-the basic implementation of the evolve is the one that cannot forgive any inconsistency in the  events passed as parameters with the current aggregate state:
+The basic implementation of the evolve is the one that cannot forgive any inconsistency in the  events passed as parameters with the current aggregate state:
 
 ```Fsharp
     let inline evolveUNforgivingErrors<'A, 'E when 'E :> Event<'A>> (h: 'A) (events: List<'E>) =
@@ -130,7 +130,6 @@ the basic implementation of the evolve is the one that cannot forgive any incons
             ) (h |> Ok)
 ```
 
-The previous version is not used to process stored events because, besides the in-memory or Postgres storage that is able to preserve the consistency of the events stored (i.e. if the event are there then they must be consistent), there is the possibility of inconsistencies in the events that are stored in a general case by using directly the EventStoreDb or a message broker system.
 
 Here is an implementation of the evolve that skips eventual inconsistent events:
 

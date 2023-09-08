@@ -145,7 +145,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="refactoring-strategy"><a class="header" href="#refactoring-strategy">Refactoring strategy</a></h1>
-<p>By aggregate refactoring I mean when we have the same models, the same application behavior and we just move models from one aggregate to another.</p>
+<p>By aggregate refactoring I mean when we just move models (collection of entities) from one aggregate to another.</p>
 <p>Here I am showing a strategy for refactoring aggregates in terms of:</p>
 <ul>
 <li>moving the model's ownership between aggregates, </li>
@@ -161,7 +161,7 @@ Consider the extreme when we have everything in a single aggregate. It would mea
 <p>The steps that may be followed are:</p>
 <ul>
 <li>defining new aggregates and eventually creating upgraded versions of current aggregates</li>
-<li>moving models ownership from old aggregates to new aggregates (or to updated versions of the same aggregates which is the same)</li>
+<li>moving model ownership from old aggregates to new aggregates (or to updated versions of the same aggregates which is the same)</li>
 <li>creating an upgraded version of the application service layer using the new set of aggregates</li>
 <li>applying the equivalent tests of the previous service layer to the new one.</li>
 </ul>

@@ -1,6 +1,6 @@
 # Refactoring strategy
 
-By aggregate refactoring I mean when we have the same models, the same application behavior and we just move models from one aggregate to another.
+By aggregate refactoring I mean when we just move models (collection of entities) from one aggregate to another.
 
 Here I am showing a strategy for refactoring aggregates in terms of:  
 - moving the model's ownership between aggregates, 
@@ -19,7 +19,7 @@ Refactoring aggregates in that sense means leaving the application service layer
 
 The steps that may be followed are:
 - defining new aggregates and eventually creating upgraded versions of current aggregates
-- moving models ownership from old aggregates to new aggregates (or to updated versions of the same aggregates which is the same)
+- moving model ownership from old aggregates to new aggregates (or to updated versions of the same aggregates which is the same)
 - creating an upgraded version of the application service layer using the new set of aggregates
 - applying the equivalent tests of the previous service layer to the new one.
 
