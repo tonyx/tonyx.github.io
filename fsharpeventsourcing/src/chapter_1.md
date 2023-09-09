@@ -31,5 +31,5 @@ The _Zero_ static member is the initial state of the aggregate and it is used to
 Note that in some popular full-stack development FSharp technologies (["Safe stack"](https://safe-stack.github.io) and specifically [Fable remoting](https://github.com/Zaid-Ajaj/Fable.Remoting)) definitions of entities that must be accessed on the client side (using Fsharp technology transpiled in javascript, i.e. [Fable](https://fable.io)) must stay in a separate project shared between the client and the server. 
 In that case, we would define the "Todo", the "Tag" and the "Category" types in a shared project so an eventual Fable/Elmish client application can use them.
 
-Source: [TodosModel.fs](https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/models/TodosModel.fs)
+Source: [TodosModel.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/entities/Todos.fs)
 

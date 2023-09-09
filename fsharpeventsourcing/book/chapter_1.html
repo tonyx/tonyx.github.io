@@ -171,7 +171,7 @@ However there can be exceptions for models that are closely related: for instanc
 The <em>Zero</em> static member is the initial state of the aggregate and it is used to rebuild the state of the aggregate when there are no events stored for that aggregate.
 Note that in some popular full-stack development FSharp technologies (<a href="https://safe-stack.github.io">&quot;Safe stack&quot;</a> and specifically <a href="https://github.com/Zaid-Ajaj/Fable.Remoting">Fable remoting</a>) definitions of entities that must be accessed on the client side (using Fsharp technology transpiled in javascript, i.e. <a href="https://fable.io">Fable</a>) must stay in a separate project shared between the client and the server. 
 In that case, we would define the &quot;Todo&quot;, the &quot;Tag&quot; and the &quot;Category&quot; types in a shared project so an eventual Fable/Elmish client application can use them.</p>
-<p>Source: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample/models/TodosModel.fs">TodosModel.fs</a></p>
+<p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/entities/Todos.fs">TodosModel.fs</a></p>
 
                     </main>
 
