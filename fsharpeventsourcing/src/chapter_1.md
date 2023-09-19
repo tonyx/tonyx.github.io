@@ -1,8 +1,8 @@
 # Entities
 
-With __Sharpino__ we essentially manage collections of entities. We can think about them in the same way as we used to while approaching the "trantitional" application development. Records in a relational database. 
-In general, any entity has no direct reference to any other entity but may reference them by their id (as an extenal reference).  So for instance a todo may contain a list of tag ids and a list of category ids that are related to it (any todo may have zero or more tags and zero or more categories).
-However there can be exceptions for models that are closely related: for instance, you may rather define an _order_ entity and an _order item_ entity in the same place so that any orders can contain a direct reference to order items instead of the id of order items (by using this approach you would represent the order items as a list of order items instead of a list of order item ids).
+With __Sharpino__ we essentially manage collections of entities.  We can think about them in the same way as we used to while approaching the "traditional" application development: records in a relational database. 
+In general, any entity has no direct reference to any other entity. However it  may reference other entities them by their id (as an extenal reference, similar to the concept of foreign key).  So for instance a _todo_ may contain a list of ids of  tags  and a list of ids of categories that are related to it (any todo may references zero or more tags and zero or more categories).
+This guideline is not strict: for instance, if you have an _order_ entity and an _order item_ entity in the same place then you may prefer that order items are a list of actual orderitem type rather than a list of ids. This will just make harder to move orderitems in different aggregate (but anyway, that would be really unlikely, in term of a more "classical" concept of aggregate).
 
 Here there is my todo entity definition:
 
@@ -24,12 +24,12 @@ Here there is my todo entity definition:
                     todos = []
                 }
 ```
-Sometimes I will use the term "model" to refer to an entity or to a collection of entities. For instance, the "Todos" model is a collection of "Todo" entities.
+Note that sometimes I can use the term "model" to refer to an entity or to a collection of entities. For instance, the "Todos" model is a collection of "Todo" entities.
 
-You've seen a special "Zero" static member. The aggregate will use it to define its own _Zero_ static member which is mandatory for any aggregate.
-The _Zero_ static member is the initial state of the aggregate and it is used to rebuild the state of the aggregate when there are no events stored for that aggregate.
-Note that in some popular full-stack development FSharp technologies (["Safe stack"](https://safe-stack.github.io) and specifically [Fable remoting](https://github.com/Zaid-Ajaj/Fable.Remoting)) definitions of entities that must be accessed on the client side (using Fsharp technology transpiled in javascript, i.e. [Fable](https://fable.io)) must stay in a separate project shared between the client and the server. 
-In that case, we would define the "Todo", the "Tag" and the "Category" types in a shared project so an eventual Fable/Elmish client application can use them.
+It is a good practice to defin3 an explicit "Zero" static member for entitiy. The aggregate will use it to define its own _Zero_ static member which is mandatory for any aggregate: An aggregate expose its _Zero_ by means of the _Zero_ of its entities.
+The _Zero_ static member for an aggregate is mandatory and represents the initial state of the aggregate.  We will need it to rebuild the state of the aggregate when there are no events stored for that aggregate.
+Note that in some popular full-stack development FSharp technologies (["Safe stack"](https://safe-stack.github.io) and specifically [Fable remoting](https://github.com/Zaid-Ajaj/Fable.Remoting)) the definitions of the entities that must be shared among the client side (Fable to Javascript node based app) and the server side (.net core web service based app)  [Fable](https://fable.io)). So the definition of the entities need to stay in a separate project shared referenced by the the client and the server projects.
+This means that we would define the "Todo", the "Tag" and the "Category" types in a shared project.
 
 Source: [TodosModel.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/entities/Todos.fs)
 

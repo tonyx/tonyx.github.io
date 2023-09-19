@@ -1,8 +1,9 @@
 # Commands
 
-We define a command type for each aggregate.
-A Command type is concretely represented by a Discriminated Union. Executing the command on a specific aggregate means returning a proper list of events that can be applied (processed) to the aggregate or an error.
-We have also _"command undoers"_, that allow us to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the command.
+We must define a command type for each aggregate.
+A Command type is concretely represented by a Discriminated Union. Executing the command on a specific aggregate means returning a proper list of events that can be applied (processed) to the aggregate, or returning an error.
+I can also specify _"command undoers"_, that allow to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the command.
+For instance the "under" of AddTodo is the related RemoveTodo (see next paragraph).
 
 The abstract definitions of Command and Undoer  are:
 

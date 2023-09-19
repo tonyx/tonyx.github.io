@@ -145,14 +145,15 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="events"><a class="header" href="#events">Events</a></h1>
-<p>As I said before, some members of an aggregate act as &quot;state changers&quot;, operating add/update/delete on one or more of its models. 
-Each aggregate has events and commands as discriminated unions (DU).</p>
-<p>An event is something that, when processed, returns a new state of the aggregate or an error, which fits the following definition:</p>
+<p>As I said before, some members of an aggregate act virtually as &quot;state changers&quot;, operating add/update/delete on one or more of its models. 
+Each aggregate has events and commands as discriminated unions (DU) with cases associated to those members.</p>
+<p>An event is something that, when processed, returns a new state of the aggregate or an error, which fits the following definition taken from the Core.fs file:</p>
 <pre><code class="language-FSharp">    type Event&lt;'A&gt; =
         abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
 </code></pre>
 <p>The <em>'A</em> is the generic aggregate type the event is associated with.</p>
-<p>This is an example of a concrete implementation of an event related to the TodoAggregate members <em>Add</em> and <em>Remove</em>:</p>
+<p>This is an example of a concrete implementation of an event related to the TodoAggregate members <em>Add</em> and <em>Remove</em>.
+Particularly, the <em>TodoAdded</em> event is associated to the <em>AddTodo</em> member and the <em>TodoRemoved</em> event is associated to the <em>RemoveTodo</em> member and the <em>Process</em> member of the event is implemented by calling the related aggregate member.</p>
 <pre><code class="language-Fsharp">    type TodoEvent =
         | TodoAdded of Todo
         | TodoRemoved of Guid
@@ -165,8 +166,7 @@ Each aggregate has events and commands as discriminated unions (DU).</p>
                         x.RemoveTodo g
 
 </code></pre>
-<p>This shows that processing an event means calling the related aggregate member.</p>
-<p>You can do event caching by wrapping the call to the specific aggregate member in a lambda expression without evaluating it and passing it to a specific cache manager that may eventually evaluate it and return the result or the cached result if the event has already been processed.</p>
+<p>You may want to do do event caching by wrapping the call to the specific aggregate member in a lambda expression without evaluating it and passing it to a specific cache manager that may eventually evaluate it and return the result or the cached result if the event has already been processed.</p>
 <pre><code class="language-Fsharp">    type TodoEvent =
         | TodoAdded of Todo
         | TodoRemoved of Guid
@@ -178,9 +178,10 @@ Each aggregate has events and commands as discriminated unions (DU).</p>
                     | TodoRemoved (g: Guid) -&gt; 
                         EventCache&lt;TodosAggregate&gt;.Instance.Memoize (fun () -&gt; x.RemoveTodo g) (x, [TodoRemoved t]) 
 </code></pre>
-<p>Having said that about caching, I am warning that caching events don't look so much like a &quot;performance booster&quot;. It looks more promising the caching of the state of the aggregate (see the next section).</p>
+<p>Having said that about caching, I wanrn that caching events don't look so much like a &quot;performance booster&quot;. It looks more promising the caching of the state of the aggregate (see the next section).</p>
 <p>Therefore event Caching is disabled by default. See &quot;EVENTS_CACHING_ENABLED&quot; in the project file: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/Sharpino.Lib.fsproj">project file</a>
-To enable the caching of events, the library must be compiled with the following compilation symbol: <code>EVENTS_CACHING_ENABLED</code>.</p>
+To enable the caching of events, the library must be compiled with the following compilation symbol: <code>EVENTS_CACHING_ENABLED</code>.
+(unfortunately, at the moment - verson 1.0.1, you cannot change it if you add the library from nugt. You need to clone the repo and compile it yourself).</p>
 <p>Source code:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Events.fs">Events.fs</a></p>
 
                     </main>

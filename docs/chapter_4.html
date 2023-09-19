@@ -145,9 +145,10 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
-<p>We define a command type for each aggregate.
-A Command type is concretely represented by a Discriminated Union. Executing the command on a specific aggregate means returning a proper list of events that can be applied (processed) to the aggregate or an error.
-We have also <em>&quot;command undoers&quot;</em>, that allow us to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the command.</p>
+<p>We must define a command type for each aggregate.
+A Command type is concretely represented by a Discriminated Union. Executing the command on a specific aggregate means returning a proper list of events that can be applied (processed) to the aggregate, or returning an error.
+I can also specify <em>&quot;command undoers&quot;</em>, that allow to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the command.
+For instance the &quot;under&quot; of AddTodo is the related RemoveTodo (see next paragraph).</p>
 <p>The abstract definitions of Command and Undoer  are:</p>
 <pre><code class="language-FSharp">
     type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
