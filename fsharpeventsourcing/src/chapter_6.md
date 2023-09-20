@@ -1,7 +1,7 @@
 # Repository
 The repository has the responsibility of:
 - getting the state of an aggregate
-- trying to run commands passed, and eventually storing the related events returned by the command.
+- trying to run commands passed, and eventually storing the related events.
 - making periodic snapshots, according to the SnapshotsInterval parameter of the aggregate.
 (Remember that snapshots are explicitly used only in the Postgres and in-memory storage implementations)
 

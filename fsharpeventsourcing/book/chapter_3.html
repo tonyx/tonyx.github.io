@@ -145,8 +145,8 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="events"><a class="header" href="#events">Events</a></h1>
-<p>As I said before, some members of an aggregate act virtually as &quot;state changers&quot;, operating add/update/delete on one or more of its models. 
-Each aggregate has events and commands as discriminated unions (DU) with cases associated to those members.</p>
+<p>As I said before, some members of an aggregate act virtually as &quot;state changers&quot;, operating add/update/delete on some of the entities that it handles.
+Each aggregate has events and commands as kdiscriminated unions (DU) with cases associated to those members.</p>
 <p>An event is something that, when processed, returns a new state of the aggregate or an error, which fits the following definition taken from the Core.fs file:</p>
 <pre><code class="language-FSharp">    type Event&lt;'A&gt; =
         abstract member Process: 'A -&gt; Result&lt;'A, string&gt;

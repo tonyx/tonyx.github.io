@@ -1,6 +1,6 @@
 # Application service layer
 
-An application service layer provides services that use Repository and Storage to get the state and/or send commands to one or more aggregates (eventually in an atomic/transactional way with potential issues already discussed).
+An application service layer provides services that use Repository and Storage to get the state and/or send commands to one or more aggregates (eventually in an atomic/transactional way with potential performance issues) and store the related events.
 
 Here is one of the simplest examples of an entry for a service involving a single aggregate, by building and running an AddTag command.
 
@@ -21,7 +21,7 @@ The service layer sends commands to the repository so that this one can run it p
 The following example shows a service layer that uses two aggregates and an explicit lock (note that the lock object concept to handle transactions has been substituted by a mailboxprocessor (actor model). Still I'm not sure if the lock object approach deserved to be dismissed).
 As mentioned in the previous section its not a big deal avoiding any locking or mailboxprocessor (single thread) command processing: the worst that may happen is that the events stored are inconsistent and will be skipped by the "evolve" function.
 
-I will show an example involving the new version right after this one.
+In the following case I assume that the aggregates where using lock objects to handle transactions (which is not the case anymore).
 
 ```FSharp
     member this.addTodo todo =

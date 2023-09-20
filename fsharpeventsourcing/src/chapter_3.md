@@ -1,7 +1,7 @@
 # Events
 
-As I said before, some members of an aggregate act virtually as "state changers", operating add/update/delete on one or more of its models. 
-Each aggregate has events and commands as discriminated unions (DU) with cases associated to those members.
+As I said before, some members of an aggregate act virtually as "state changers", operating add/update/delete on some of the entities that it handles.
+Each aggregate has events and commands as kdiscriminated unions (DU) with cases associated to those members.
 
 An event is something that, when processed, returns a new state of the aggregate or an error, which fits the following definition taken from the Core.fs file:
 
