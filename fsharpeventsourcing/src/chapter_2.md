@@ -8,9 +8,10 @@ Given that the state of the aggregate is a function of the related events proces
 It is needed to be able to provide the state of the aggregate when there is no event stored related to that aggregate.
 - __StorageName__ and  __Version__: this combination uniquely identifies the aggregate and lets the storage know in which stream to store events and snapshots. Whatever will be the storage (memory, Postgres, EventstoreDb, etc.) the aggregate will be stored in a stream named as the concatenation of the _StorageName_ and the _Version_ (i.e. "_todo_01")
 
-- __LockObject__: (_warning: the lockobject concept is obsolete, and not mandatory anymore. It was meant to handle single-thread processing but at the moment I am providing an actor model based mailboxprocessor to ensure single-thread chain command->events->eventstoring, so you will skip this part_). Before introducing the _mailboxprocessor_ (i.e. an actor model single thread message processor), the repository was supposed to be able of using aggregate locks while processing commands and storing related events ensuring consistency using a  pessimistic locking style. 
-An application layer was also supposed to use them explicitly to ensure inter-aggregate integrity (invariant conditions involving models handled by separate aggregates).
-So as a recap: we may use no lock at all and just accept that unconsistent events may be stored because of concurrent processing, or we may use locks to ensure that commands are processed one at a time, or we may use mailboxprocessor to use single thread processing for any command (whatever aggregate will be involved).
+- __Lock__: 
+An application layer can rely on locks to ensure inter-aggregate integrity (invariant conditions involving models handled by separate aggregates).
+
+Wrap up: we may use no lock at all and just accept that unconsistent events may be stored because of concurrent processing, or we may use locks to ensure that commands are processed one at a time, or we may use mailboxprocessor to use single thread processing for any command (whatever aggregate will be involved).
 
 - __SnapshotsInterval__: the number of the events that can be stored after a snapshot before creating a new snapshot (i.e. the number of events between snapshots)
 

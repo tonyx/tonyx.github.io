@@ -1,6 +1,6 @@
 # Entities
 
-With __Sharpino__ we essentially manage collections of entities. I used records to represent entities, with a unique identifier (Id). 
+I can represent entities as records. They needs a unique identifier (Id). 
 In general, any entity has no direct reference to any other entity. However it  may reference other entities them by their id (as an extenal reference, similar to the concept of foreign key).  So for instance a _todo_ may contain a list of ids of tags  and a list of ids of categories that are related to it (any todo may reference zero or more tags and zero or more categories).
 You may change this approach and refer entities in direct way rather than using key: for instance, if you have an _order_ entity and an _order item_ entity you may prefer that order items are a list of actual orderitem type rather than a list of ids. Just remember that you can't have circular dependencies in F# (unless you explicitely use keywords like _rec_ and _and_). 
 
