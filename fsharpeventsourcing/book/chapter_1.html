@@ -167,8 +167,8 @@ You may change this approach and refer entities in direct way rather than using 
                 }
 </code></pre>
 <p>Note that sometimes I may use the term &quot;model&quot; to refer to an entity or to a collection of entities. For instance, the &quot;Todos&quot; model is a collection of &quot;Todo&quot; entities.</p>
-<p>It is a good practice to define an explicit &quot;Zero&quot; static member for entitiy. The aggregate will use it to define its own <em>Zero</em> static member which is mandatory for aggregates: So an aggregate expose its <em>Zero</em> by means of the <em>Zero</em> of its entities.
-The <em>Zero</em> static member for an aggregate is mandatory and represents the initial state of the aggregate.  We will need it to rebuild the state of the aggregate when there are no events stored for that aggregate.
+<p>It is a good practice to define an explicit &quot;Zero&quot; static member for entitiy. The cluster will use it to define its own <em>Zero</em> static member which is mandatory for clusters: So a cluster expose its <em>Zero</em> by means of the <em>Zero</em> of its entities.
+The <em>Zero</em> static member for a cluster is mandatory and represents its initial state.<br />
 Note that in a popular full-stack development FSharp technology (<a href="https://safe-stack.github.io">&quot;Safe stack&quot;</a> which ingludes <a href="https://github.com/Zaid-Ajaj/Fable.Remoting">Fable remoting</a>) the definitions of the entities that are shared among the client side (Fable to Javascript node based app) and the server side (.net core web service based app) <a href="https://fable.io">Fable</a>). So the definition of the entities need to stay in a separate project shared referenced by the the client and the server projects.
 This means that we would define the &quot;Todo&quot;, the &quot;Tag&quot; and the &quot;Category&quot; types in a shared project.</p>
 <p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/entities/Todos.fs">TodosModel.fs</a></p>

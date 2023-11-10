@@ -147,20 +147,21 @@
                     <main>
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
 <p><a href="https://github.com/tonyx/Micro_ES_FSharp_Lib">Sharpino</a> is a little F# event sourcing framework.
-At the moment (2023-08-06) it supports <em>in memory</em>, <em>Postgres</em> and _EventStoreDb as storage folr events.
-The framework is based on the concept of <em>aggregate</em> and <em>command</em> around aggregates.
-An aggregate is a set of collections of entities. A command is a request to an aggregate to perform an action involving one or more entities.</p>
-<p>This doc is quick overview of how Sharpino works by means of its sample application: a Todo list manager with tags and categories. Tags and categories work as a way to classify todos. We will see the difference between having a single aggregate managing all the entities and having separate aggregates for different entities.</p>
-<p>I'll focus on: entities, aggregates, events, commands, service application layer, repository and storages.
-I'll also mention the problem of undoing a command and how to handle aggregate refactoring (moving entities from one aggregate to another and at the same time testing all those configurations).</p>
+Even though the example provided are closer to the concept of 
+At the moment (2023-08-06) it supports <em>in memory</em>, <em>Postgres</em> and _EventStoreDb as storage for events.</p>
+<p>The framework is based on the concept of <em>clusters</em> and <em>command</em> around clusters.
+A cluster is a set of collections of entities. A command is a request to a cluster to perform an action involving one or more entities.</p>
+<p>This doc is quick overview of how Sharpino works by means of its sample application: a Todo list manager with tags and categories. Tags and categories work as a way to classify todos. We will see the difference between having a single cluster managing all the entities and having separate clusters for different entities.</p>
+<p>I'll focus on: entities, cluster, events, commands, service application layer, repository and storages.
+I'll also mention the problem of undoing a command and how to handle cluster refactoring (moving entities from one cluster to another and at the same time testing all those configurations).</p>
 <h2 id="the-sample-application"><a class="header" href="#the-sample-application">The sample application</a></h2>
 <p>As already mentioned the sample application is a todo list manager. Each todo contains references to Tags and Categories.
-I'll show how we can handle two versions of the same application that use different aggregate configurations. This will help to talk about the aggregate refactoring.</p>
-<p>The &quot;version 1&quot; has an Aggregate managing Todo and Categories, and another aggregate managing Tags.</p>
-<p>The &quot;version 2&quot; of the application consists of three different aggregates: one for the Todo model, one for the Categories model, and another one for the Tags model.</p>
-<p>The challenge about being able to write parametric tests that can be executed against the current and the next aggregate configuration at the same time, having the migration between the former and the latter configuration.
-That means that you may avoid caring about the aggregate configuration when prototyping the application. The concept of aggregate will <strong>not</strong> be about having an aggregate root (which is the classic definition). Creating aggreagate will means no more than partitioning the set of the collections of entities. (each aggregate take care of a partition of the set of all the entities)</p>
-<p>A prototype of an application may start with a single aggregate managing all the entities. Then, when the application grows, you may want to split the aggregate in two or more aggregates. This is what I call &quot;aggregate refactoring&quot;.</p>
+I'll show how we can handle two versions of the same application that use different cluster configurations. This will help to talk about the cluster refactoring.</p>
+<p>The &quot;version 1&quot; has a cluster managing Todo and Categories, and another cluster managing Tags.</p>
+<p>The &quot;version 2&quot; of the application consists of three different clusters: one for the Todo model, one for the Categories model, and another one for the Tags model.</p>
+<p>The challenge about being able to write parametric tests that can be executed against the current and the next cluster configuration at the same time, having the migration between the former and the latter configuration.
+That means that you may avoid caring about the cluster configuration when prototyping the application. Creating cluster will means no more than partitioning the set of the collections of entities. </p>
+<p>A prototype of an application may start with a single cluster managing all the entities. Then, when the application grows, you may want to split the cluster in two or more clusters. This is what I call &quot;cluster refactoring&quot;.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="entities"><a class="header" href="#entities">Entities</a></h1>
 <p>I can represent entities as records. They needs a unique identifier (Id). 
 In general, any entity has no direct reference to any other entity. However it  may reference other entities them by their id (as an extenal reference, similar to the concept of foreign key).  So for instance a <em>todo</em> may contain a list of ids of tags  and a list of ids of categories that are related to it (any todo may reference zero or more tags and zero or more categories).
@@ -184,34 +185,33 @@ You may change this approach and refer entities in direct way rather than using 
                 }
 </code></pre>
 <p>Note that sometimes I may use the term &quot;model&quot; to refer to an entity or to a collection of entities. For instance, the &quot;Todos&quot; model is a collection of &quot;Todo&quot; entities.</p>
-<p>It is a good practice to define an explicit &quot;Zero&quot; static member for entitiy. The aggregate will use it to define its own <em>Zero</em> static member which is mandatory for aggregates: So an aggregate expose its <em>Zero</em> by means of the <em>Zero</em> of its entities.
-The <em>Zero</em> static member for an aggregate is mandatory and represents the initial state of the aggregate.  We will need it to rebuild the state of the aggregate when there are no events stored for that aggregate.
+<p>It is a good practice to define an explicit &quot;Zero&quot; static member for entitiy. The cluster will use it to define its own <em>Zero</em> static member which is mandatory for clusters: So a cluster expose its <em>Zero</em> by means of the <em>Zero</em> of its entities.
+The <em>Zero</em> static member for a cluster is mandatory and represents its initial state.<br />
 Note that in a popular full-stack development FSharp technology (<a href="https://safe-stack.github.io">&quot;Safe stack&quot;</a> which ingludes <a href="https://github.com/Zaid-Ajaj/Fable.Remoting">Fable remoting</a>) the definitions of the entities that are shared among the client side (Fable to Javascript node based app) and the server side (.net core web service based app) <a href="https://fable.io">Fable</a>). So the definition of the entities need to stay in a separate project shared referenced by the the client and the server projects.
 This means that we would define the &quot;Todo&quot;, the &quot;Tag&quot; and the &quot;Category&quot; types in a shared project.</p>
 <p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/entities/Todos.fs">TodosModel.fs</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="aggregates"><a class="header" href="#aggregates">Aggregates</a></h1>
-<p>You can define an aggregate as a record with static and instance members. It handles one or more collections of entities. The crucial role of the aggregate is that I can get the current state of any aggregate by processing the stored events using the <em>evolve</em> function. As we will see later, the <em>events</em> are closely related to the members of the aggregate that are meant to &quot;virtually&quot; change the state of the aggregate (there is no actual change because we are using immutable data structures).</p>
-<p>Given that the state of the aggregate is a function of the related events processed and stored, an aggregate needs the following information associated that I defined as mandatory, static members:</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="clusters"><a class="header" href="#clusters">Clusters</a></h1>
+<p>You can define a cluster as a record with static and instance members. It handles one or more collections of entities. The crucial role of the cluster is that I can get the current state of any cluster by processing the stored events using the <em>evolve</em> function. As we will see later, the <em>events</em> are closely related to the members of the cluster that are meant to &quot;virtually&quot; change the state of the cluster (there is no actual change because we are using immutable data structures).</p>
+<p>Given that the state of the cluster is a function of the related events processed and stored, it needs the following information associated that I defined as mandatory, static members:</p>
 <ul>
 <li>
-<p><strong>Zero</strong>: the instance of the aggregate in its initial state. 
-It is needed to be able to provide the state of the aggregate when there is no event stored related to that aggregate.</p>
+<p><strong>Zero</strong>: the initial state (no events yet).</p>
 </li>
 <li>
-<p><strong>StorageName</strong> and  <strong>Version</strong>: this combination uniquely identifies the aggregate and lets the storage know in which stream to store events and snapshots. Whatever will be the storage (memory, Postgres, EventstoreDb, etc.) the aggregate will be stored in a stream named as the concatenation of the <em>StorageName</em> and the <em>Version</em> (i.e. &quot;_todo_01&quot;)</p>
+<p><strong>StorageName</strong> and  <strong>Version</strong>: this combination uniquely identifies the cluster and lets the storage know in which stream to store events and snapshots. Whatever will be the storage (memory, Postgres, EventstoreDb, etc.) the cluster will be stored in a stream named as the concatenation of the <em>StorageName</em> and the <em>Version</em> (i.e. &quot;_todo_01&quot;)</p>
 </li>
 <li>
 <p><strong>Lock</strong>: 
-An application layer can rely on locks to ensure inter-aggregate integrity (invariant conditions involving models handled by separate aggregates).</p>
+An application layer can rely on locks to ensure inter-cluster integrity (invariant conditions involving models handled by separate clusters).</p>
 </li>
 </ul>
-<p>Wrap up: we may use no lock at all and just accept that unconsistent events may be stored because of concurrent processing, or we may use locks to ensure that commands are processed one at a time, or we may use mailboxprocessor to use single thread processing for any command (whatever aggregate will be involved).</p>
+<p>Wrap up: we may use no lock at all and just accept that unconsistent events may be stored because of concurrent processing, or we may use locks to ensure that commands are processed one at a time, or we may use mailboxprocessor to use single thread processing for any command.</p>
 <ul>
 <li><strong>SnapshotsInterval</strong>: the number of the events that can be stored after a snapshot before creating a new snapshot (i.e. the number of events between snapshots)</li>
 </ul>
-<p>In all my current implementations of storage  (<em>in memory</em>,  <em>Postgres</em> and <em>EventstoreDb</em>)  the state of any aggregate is rebuilt starting from the latest available snapshot and applying the events that are after the snapshot. The current state of any aggregate may also be cached.</p>
+<p>In all my current implementations of storage  (<em>in memory</em>,  <em>Postgres</em> and <em>EventstoreDb</em>)  the state of any cluster is rebuilt starting from the latest available snapshot and applying the events that are after the snapshot. The current state of any cluster may also be cached.</p>
 <p>Example:</p>
-<pre><code class="language-FSharp">    type TodosAggregate =
+<pre><code class="language-FSharp">    type TodosCluster =
         {
             todos: Todos
             categories: Categories
@@ -228,8 +228,8 @@ An application layer can rely on locks to ensure inter-aggregate integrity (inva
         static member SnapshotsInterval =
             15
 </code></pre>
-<p>Some members of the aggregate virtually change the state of the aggregate in the sense that they return an instance of the aggregate in a different state or an error. It means that such members will <em>add/update/delete</em>  some of their entities. We will be able to associate those members with aggregate <em>events</em> (see next section).
-In the following example, the aggregate of the Todos manages the todos and the categories entities so it will be able to check the validity of the categories referenced by any todo before adding it (to preserve the rule that you can add only todo with category-Ids related to existing categories).
+<p>Some instance members virtually change the state in the sense that they return a new  instance in a different state or an error. It means that such members will <em>add/update/delete</em>  some of their entities. We will be able to associate those members with  <em>events</em> (see next section).
+In the following example, the TodosCluster manages the todos and the categories entities so it will be able to check the validity of the categories referenced by any todo before adding it (to preserve the rule that you can add only todo with category-Ids related to existing categories).
 It uses the &quot;result&quot; computational expression included in the FsToolkit.ErrorHandling library which supports the <a href="https://fsharpforfunandprofit.com/rop/"><em>railway-oriented programming</em></a> pattern of handling errors.</p>
 <p>Example:</p>
 <pre><code class="language-FSharp">    member this.AddTodo (t: Todo) =
@@ -249,23 +249,23 @@ It uses the &quot;result&quot; computational expression included in the FsToolki
                     }
             }
 </code></pre>
-<p>Wrap-up: Wile adding/removing/updating entities in an aggregate we can protect any invariant conditions related to other entities that we have put under the same aggreagate of the same aggregate without the need for any explicit transaction because at that level there is no awareness of the storage. Still, I will show that we can protect other invariant conditions that may involve entities handled by different aggregates. This will be possible at the service application layer (see in the next sections) running commands involving multiple aggregates and therefore multiple streams of events. This sometimes will involve the use of explicit transactions when supported by the storage (i.e. Postgres), and sometimes will involve the &quot;undoer&quot;: a special command attached to a command to undo the changes made by the command itself (see the next sections), useful when the storage does not support multiple stream transactions.</p>
-<p>Source code: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Aggregate.fs">TodosAggregate.fs</a></p>
+<p>Wrap-up: Wile adding/removing/updating entities in a clustee we can protect any invariant conditions related to other entities that we have put under the same cluster without the need for any explicit transaction because at that level there is no awareness of the storage. Still, I will show that we can protect other invariant conditions that may involve entities of other clusters. This will be possible at the service application layer (see in the next sections) running commands involving multiple streams streams of events. This sometimes will involve the use of explicit transactions when supported by the storage (i.e. Postgres), and sometimes will involve the &quot;undoer&quot;: a special command attached to a command to undo the changes made by the command itself (see the next sections), useful when the storage does not support multiple stream transactions.</p>
+<p>Source code: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/clusters/Todos/Cluster.fs">TodosCluster.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="events"><a class="header" href="#events">Events</a></h1>
-<p>As I said before, some members of an aggregate act virtually as &quot;state changers&quot;, operating add/update/delete on some of the entities that it handles.
-Each aggregate has events and commands as kdiscriminated unions (DU) with cases associated to those members.</p>
-<p>An event is something that, when processed, returns a new state of the aggregate or an error, which fits the following definition taken from the Core.fs file:</p>
+<p>As I said before, some instance members of a cluster act virtually as &quot;state changers&quot;, operating add/update/delete on some of the entities that it handles.
+Events and commands are  discriminated unions (DU) with cases associated to those members.</p>
+<p>An event is something that, when processed, returns a new state or an error, which fits the following definition taken from the Core.fs file:</p>
 <pre><code class="language-FSharp">    type Event&lt;'A&gt; =
         abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
 </code></pre>
-<p>The <em>'A</em> is the generic aggregate type the event is associated with.</p>
-<p>This is an example of a concrete implementation of an event related to the TodoAggregate members <em>Add</em> and <em>Remove</em>.
-Particularly, the <em>TodoAdded</em> event is associated to the <em>AddTodo</em> member and the <em>TodoRemoved</em> event is associated to the <em>RemoveTodo</em> member and the <em>Process</em> member of the event is implemented by calling the related aggregate member.</p>
+<p>The <em>'A</em> is the generic cluster type the event is associated with.</p>
+<p>This is an example of a concrete implementation of an event related to the TodoCluster members <em>Add</em> and <em>Remove</em>.
+Particularly, the <em>TodoAdded</em> event is associated to the <em>AddTodo</em> member and the <em>TodoRemoved</em> event is associated to the <em>RemoveTodo</em> member and the <em>Process</em> member of the event is implemented by calling the related clusters member.</p>
 <pre><code class="language-Fsharp">    type TodoEvent =
         | TodoAdded of Todo
         | TodoRemoved of Guid
-            interface Event&lt;TodosAggregate&gt; with
-                member this.Process (x: TodosAggregate ) =
+            interface Event&lt;TodosCluster&gt; with
+                member this.Process (x: TodosCluster ) =
                     match this with
                     | TodoAdded (t: Todo) -&gt; 
                         x.AddTodo t
@@ -273,26 +273,10 @@ Particularly, the <em>TodoAdded</em> event is associated to the <em>AddTodo</em>
                         x.RemoveTodo g
 
 </code></pre>
-<p>You may want to do do event caching by wrapping the call to the specific aggregate member in a lambda expression without evaluating it and passing it to a specific cache manager that may eventually evaluate it and return the result or the cached result if the event has already been processed.</p>
-<pre><code class="language-Fsharp">    type TodoEvent =
-        | TodoAdded of Todo
-        | TodoRemoved of Guid
-            interface Event&lt;TodosAggregate&gt; with
-                member this.Process (x: TodosAggregate ) =
-                    match this with
-                    | TodoAdded (t: Todo) -&gt; 
-                        EventCache&lt;TodosAggregate&gt;.Instance.Memoize (fun () -&gt; x.AddTodo t) (x, [TodoAdded t]) 
-                    | TodoRemoved (g: Guid) -&gt; 
-                        EventCache&lt;TodosAggregate&gt;.Instance.Memoize (fun () -&gt; x.RemoveTodo g) (x, [TodoRemoved t]) 
-</code></pre>
-<p>Having said that about caching, I wanrn that caching events don't look so much like a &quot;performance booster&quot;. It looks more promising the caching of the state of the aggregate (see the next section).</p>
-<p>Therefore event Caching is disabled by default. See &quot;EVENTS_CACHING_ENABLED&quot; in the project file: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/Sharpino.Lib.fsproj">project file</a>
-To enable the caching of events, the library must be compiled with the following compilation symbol: <code>EVENTS_CACHING_ENABLED</code>.
-(unfortunately, at the moment - verson 1.0.1, you cannot change it if you add the library from nugt. You need to clone the repo and compile it yourself).</p>
 <p>Source code:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Events.fs">Events.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
-<p>We must define a command type for each aggregate.
-A Command type is concretely represented by a Discriminated Union. Executing the command on a specific aggregate means returning a proper list of events that can be applied (processed) to the aggregate, or returning an error.
+<p>We must define command types.
+A Command type is concretely represented by a Discriminated Union. Executing the command on a specific cluster means returning a proper list of events that can be applied (processed)  or returning an error.
 I can also specify <em>&quot;command undoers&quot;</em>, that allow to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the related command.
 For instance the &quot;under&quot; of AddTodo is the related RemoveTodo (see next paragraph).</p>
 <p>The abstract definitions of Command and Undoer  are:</p>
@@ -309,8 +293,8 @@ For instance the &quot;under&quot; of AddTodo is the related RemoveTodo (see nex
         | AddTodo of Todo
         | RemoveTodo of Guid
 
-        interface Command&lt;TodosAggregate, TodoEvent&gt; with
-            member this.Execute (x: TodosAggregate) =
+        interface Command&lt;TodosCluster, TodoEvent&gt; with
+            member this.Execute (x: TodosCluster) =
                 match this with
                 | AddTodo t -&gt; 
                     match x.AddTodo t with
@@ -327,8 +311,8 @@ For instance the &quot;under&quot; of AddTodo is the related RemoveTodo (see nex
 <pre><code class="language-FSharp">    type TodoCommand =
         [...]
         | Add2Todos of Todo * Todo
-        interface Command&lt;TodosAggregate, TodoEvent&gt; with
-            member this.Execute (x: TodosAggregate) =
+        interface Command&lt;TodosCluster, TodoEvent&gt; with
+            member this.Execute (x: TodosClusten) =
             [...]
             match this with
             | Add2Todos (t1, t2) -&gt; 
@@ -342,12 +326,12 @@ For instance the &quot;under&quot; of AddTodo is the related RemoveTodo (see nex
             member this.Undoer
 
 </code></pre>
-<p>Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed on the current aggregate state, give an Ok result, i.e. a valid aggregate state (and no error). 
+<p>Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed on the current state, give an Ok result, i.e. a valid state (and no error). 
 For that reason, before returning the events, I invoked the &quot;evolveUNforgivingErrors&quot; function to &quot;probe&quot; the sequence of two events to be eventually returned and see if the result is a valid state.
-The evolveUNforgivingErrors processes some events to a given state of the aggregate returning an error or a valid state.
-This does not mean that we will be able to process properly the events returned by the command, because the aggregate state may have changed in the meantime in case we don't handle concurrencly in a strict way.
+The evolveUNforgivingErrors processes some events to a given state returning an error or a valid state.
+This does not mean that we will be able to process properly the events returned by the command, because the state may have changed in the meantime in case we don't handle concurrencly in a strict way.
 Therefore I assume that the events stored could be inconsistent. For that reason to process the stored events we will use an <em>evolve</em> function that is able to &quot;tolerate&quot; (and anyway log), inconsistent events.</p>
-<p>Thus the <em>evolve</em> will just skip events that, when processed give error, and can return a valid aggregate state anyway. 
+<p>Thus the <em>evolve</em> will just skip events that, when processed give error, and can return a valid state anyway. 
 The way evolve can forgive inconsistent events is a form of optimistic locking: you may eventually add events to the storage that end up in an inconsistent state. They will just be ignored. That means: you can avoid single thread, or locks in command processing.</p>
 <p>Commands can use event caching if it is enabled as we have seen in the previous section.</p>
 <h2 id="undoer"><a class="header" href="#undoer">Undoer</a></h2>
@@ -361,28 +345,28 @@ If you will use an EventStoreDb-like engine as storage, you may want to provide 
         abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
         abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
 </code></pre>
-<p>Given the current state of the aggregate, the &quot;command undoer&quot; returns a function that, applied to the aggregate state, must return the actual <em>undoer</em>.</p>
+<p>Given the current state, the &quot;command undoer&quot; returns a function that, applied to the  state, must return the actual <em>undoer</em>.</p>
 <p>So the undoers work in two shots: one to build a context for the eventual future undo, and one to actually... <em>do</em> the <em>undo!</em>. </p>
 <p><strong>Example of &quot;undoer&quot;</strong> :</p>
-<p>The <em>RemoveTag</em> command returns a list of TagRemoved events. We know that when those events are processed the result is the aggregate without the tags.
+<p>The <em>RemoveTag</em> command returns a list of TagRemoved events. We know that when those events are processed the result is the new cluster state without the tags.
 However, we may want to roll back the effect of those events by adding events that reverse their effect.</p>
-<p>This applies to a transaction context: you need to be able to re-add the tag to the aggregate state. For this reason, you need to build a context <em>before</em> the removal so that the tag to be eventually readded is still available.</p>
+<p>This applies to a transaction context: you need to be able to re-add the tag to the state. For this reason, you need to build a context <em>before</em> the removal so that the tag to be eventually readded is still available.</p>
 <p>From the code with some comments:</p>
 <pre><code class="language-Fsharp">    member this.Undoer = 
         match this with
         | RemoveTag g -&gt; 
             // block to be executed before the actual command removing tag 
             // is executed. It will return another function with the context needed (the tag itself)
-            (fun (x: TagsAggregate) -&gt;
+            (fun (x: TagsCluster) -&gt;
                 result {
                     let! tag = x.GetTag g
                     let result =
 
                         // block to be executed after the actual command removing tag is executed.  
-                        // It will return the list of events to be applied to the aggregate state to compensate the effect of the command. 
-                        // Note that the tag is the context needed to readd the tag to the aggregate state.
+                        // It will return the list of events to be applied to the cluster state to compensate the effect of the command. 
+                        // Note that the tag is the context needed to readd the tag to the  state.
 
-                        fun (x': TagsAggregate) -&gt;
+                        fun (x': TagsCluster) -&gt;
                             x'.AddTag tag 
                             |&gt; Result.map (fun _ -&gt; [TagAdded tag])
                     return result
@@ -392,8 +376,8 @@ However, we may want to roll back the effect of those events by adding events th
         | AddTag t -&gt;
             // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. 
             // The context is the tag itself (particularly its id), that can't be lost during the transaction.
-            (fun (_: TagsAggregate) -&gt;
-                fun (x': TagsAggregate) -&gt;
+            (fun (_: TagsCluster) -&gt;
+                fun (x': TagsCluster) -&gt;
                     x'.RemoveTag t.Id 
                     |&gt; Result.map (fun _ -&gt; [TagAdded t])
                 |&gt; Ok
@@ -401,27 +385,27 @@ However, we may want to roll back the effect of those events by adding events th
             |&gt; Some
 
 </code></pre>
-<p>Source code: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Commands.fs">Commands.fs</a>)</p>
+<p>Source code: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/clusters/Todos/Commands.fs">Commands.fs</a>)</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
-<p>An application service layer provides services that use Repository and Storage to get the state and/or send commands to one or more aggregates (eventually in an atomic/transactional way with potential performance issues) and store the related events.</p>
-<p>Here is one of the simplest examples of an entry for a service involving a single aggregate, by building and running an AddTag command.</p>
+<p>An application service layer provides services that use Repository and Storage to get the state and/or send commands to one or more clusters (eventually in an atomic/transactional way with potential performance issues) and store the related events.</p>
+<p>Here is one of the simplest examples of an entry for a service involving a single cluster, by building and running an AddTag command.</p>
 <pre><code class="language-FSharp">    member this.addTag tag =
         result {
             let! _ =
                 tag
                 |&gt; AddTag
-                |&gt; (runCommand&lt;TagsAggregate, TagEvent&gt; storage)
+                |&gt; (runCommand&lt;TagsCluster, TagEvent&gt; storage)
             return ()
         }
 </code></pre>
 <p>The service layer sends commands to the repository so that this one can run it producing and storing the related events.</p>
-<p>The following example shows a service layer that uses two aggregates and an explicit lock (note that the lock object concept to handle transactions has been substituted by a mailboxprocessor (actor model). Still I'm not sure if the lock object approach deserved to be dismissed).
+<p>The following example shows a service layer that uses two clusters and an explicit lock (note that the lock object concept to handle transactions has been substituted by a mailboxprocessor (actor model). Still I'm not sure if the lock object approach deserved to be dismissed).
 As mentioned in the previous section its not a big deal avoiding any locking or mailboxprocessor (single thread) command processing: the worst that may happen is that the events stored are inconsistent and will be skipped by the &quot;evolve&quot; function.</p>
-<p>In the following case I assume that the aggregates where using lock objects to handle transactions (which is not the case anymore).</p>
+<p>In the following case I assume that the cluster where using lock objects to handle transactions (which is not the case anymore).</p>
 <pre><code class="language-FSharp">    member this.addTodo todo =
-        lock TagsAggregate.LockObj &lt;| fun () -&gt;
+        lock TagsCluster.LockObj &lt;| fun () -&gt;
             result {
-                let! (_, tagState) = getState&lt;TagsAggregate, TagEvent&gt;(storage)
+                let! (_, tagState) = getState&lt;TagsCluster, TagEvent&gt;(storage)
                 let tagIds = tagState.GetTags() |&gt;&gt; (fun x -&gt; x.Id)
 
                 let! tagIdIsValid =    
@@ -432,7 +416,7 @@ As mentioned in the previous section its not a big deal avoiding any locking or 
                 return! 
                     todo
                     |&gt; TodoCommand.AddTodo
-                    |&gt; (runCommand&lt;TodosAggregate, TodoEvent&gt; storage)
+                    |&gt; (runCommand&lt;TodosCluster, TodoEvent&gt; storage)
             }
 </code></pre>
 <p>The todo can be added only if it contains valid tag references.</p>
@@ -440,7 +424,7 @@ As mentioned in the previous section its not a big deal avoiding any locking or 
 <pre><code class="language-FSharp">        member this.AddTodo todo =
             let f = fun () -&gt;
                 ResultCE.result {
-                    let! (_, tagState) = storage |&gt; getState&lt;TagsAggregate, TagEvent&gt; 
+                    let! (_, tagState) = storage |&gt; getState&lt;TagsCluster, TagEvent&gt; 
                     let tagIds = tagState.GetTags() |&gt;&gt; (fun x -&gt; x.Id)
 
                     let! tagIdIsValid =    
@@ -451,10 +435,10 @@ As mentioned in the previous section its not a big deal avoiding any locking or 
                     let! _ =
                         todo
                         |&gt; TodoCommand.AddTodo
-                        |&gt; runCommand&lt;TodosAggregate, TodoEvent&gt; storage
+                        |&gt; runCommand&lt;TodosCluster, TodoEvent&gt; storage
                     let _ = 
                         storage
-                        |&gt; mkSnapshotIfInterval&lt;TodosAggregate, TodoEvent&gt;
+                        |&gt; mkSnapshotIfInterval&lt;TodosCluster, TodoEvent&gt;
                 return ()
             }
             async {
@@ -463,15 +447,15 @@ As mentioned in the previous section its not a big deal avoiding any locking or 
             |&gt; Async.RunSynchronously
 </code></pre>
 <p>The entire expression is wrapped in an async block and the processor.PostAndReply function is used to send the function f to the processor and wait for the result (again: the processor is a single thread message processor that may not be required anymore).</p>
-<p>Basically this approach ensures single-thread processing but may slow down the processing of commands if the aggregate is involved in a long-running transaction.</p>
-<p>Another example is the following, about sending commands to more aggregates.
+<p>Basically this approach ensures single-thread processing but may slow down the transaction.</p>
+<p>Another example is the following, about sending commands to more clusters.
 This code removes the tag with any reference to it. It builds two commands and makes the repository process them at the same time.
 This code removes a tag and any reference to it.</p>
 <pre><code class="language-FSharp">    member this.removeTag id =
         ResultCE.result {
             let removeTag = TagCommand.RemoveTag id
             let removeTagRef = TodoCommand.RemoveTagRef id
-            let! _ = runTwoCommands&lt;TagsAggregate, TodosAggregate, TagEvent, TodoEvent&gt; storage removeTag removeTagRef
+            let! _ = runTwoCommands&lt;TagsCluster, TodosCluster, TagEvent, TodoEvent&gt; storage removeTag removeTagRef
             return ()
         }
 </code></pre>
@@ -481,12 +465,11 @@ In the case the storage does not support multiple streams transactions (i.e. Eve
 <div style="break-before: page; page-break-before: always;"></div><h1 id="repository"><a class="header" href="#repository">Repository</a></h1>
 <p>The repository has the responsibility of:</p>
 <ul>
-<li>getting the state of an aggregate</li>
+<li>getting the state</li>
 <li>trying to run commands passed, and eventually storing the related events.</li>
-<li>making periodic snapshots, according to the SnapshotsInterval parameter of the aggregate.
-(Remember that snapshots are explicitly used only in the Postgres and in-memory storage implementations)</li>
+<li>making periodic snapshots, according to the SnapshotsInterval.</li>
 </ul>
-<p>Here is an example of the private member that retrieves the last snapshot:</p>
+<p>Here is an example of the private member that retrieves the latest snapshot:</p>
 <pre><code class="language-FSharp">    let inline private getLastSnapshot&lt;'A 
         when 'A: (static member Zero: 'A) 
         and 'A: (static member StorageName: string)
@@ -507,7 +490,7 @@ In the case the storage does not support multiple streams transactions (i.e. Eve
 </code></pre>
 <p>This function uses the storage to retrieve a triple of the snapshot-Id, the related eventId and the snapshot itself, serialized as json.
 Note that the snapshot may be cached in memory so that the deserialization is done only once.</p>
-<p>To get the current state of an aggregate we need to get the last snapshot and the events that are after the snapshot.</p>
+<p>To get the current state of a cluster we need to get the last snapshot and the events that are after the snapshot.</p>
 <p>Here is an older version of how to get the state:</p>
 <pre><code class="language-Fsharp">    let inline getState&lt;'A, 'E
         when 'A: (static member Zero: 'A)
@@ -541,7 +524,7 @@ Note that the snapshot may be cached in memory so that the deserialization is do
             return (lastEventId, result)
         }
 </code></pre>
-<p>Now I show the current implementation that enables aggregate-state caching:</p>
+<p>Now I show the current implementation that enables cluster-state caching:</p>
 <pre><code class="language-FSharp">    let inline getState&lt;'A, 'E
         when 'A: (static member Zero: 'A)
         and 'A: (static member StorageName: string)
@@ -582,10 +565,10 @@ Note that the snapshot may be cached in memory so that the deserialization is do
             |&gt; Async.RunSynchronously
         StateCache&lt;'A&gt;.Instance.Memoize (fun () -&gt; eventuallyFromCache()) (lastEventId, 'A.StorageName)
 </code></pre>
-<p>In the above code, the state is a function of eventId, and so we can use this eventId as the key of a cache that stores the state of the aggregate.</p>
+<p>In the above code, the state is a function of eventId, and so we can use this eventId as the key of a cache that stores the state of the cluster.</p>
 <p>Note that here the evolve function is used, which is part of the core library.</p>
 <p>There are actually two similar evolve implementations:</p>
-<p>The basic implementation of the evolve is the one that cannot forgive any inconsistency in the  events passed as parameters with the current aggregate state:</p>
+<p>The basic implementation of the evolve is the one that cannot forgive any inconsistency in the  events passed as parameters with the current state:</p>
 <pre><code class="language-Fsharp">    let inline evolveUNforgivingErrors&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; (h: 'A) (events: List&lt;'E&gt;) =
         events
         |&gt; List.fold
@@ -626,21 +609,25 @@ Note that the snapshot may be cached in memory so that the deserialization is do
 See <em>lightrepository</em></p>
 <p><a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/LightRepository.fs">LightRepository.fs</a> </p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="storage"><a class="header" href="#storage">Storage</a></h1>
-<p>A storage stores and retrieves events and snapshots related to each single aggregate.</p>
-<p>In a strict way storage ensures transactionality particularly in special cases like when adding events related to multiple aggregates.</p>
+<p>A storage stores and retrieves events and snapshots related to each single cluster.</p>
+<p>In a strict way storage ensures transactionality particularly in special cases like when adding events related to multiple clusters.</p>
 <p>In a general sense, there is the possibility of supporting storages that lack transactionality between multiple streams,  and that is the case of the <em>EventStoreBridge</em> (or, in the future, Kafa etc..)</p>
 <p>Here is the abstract definition of members required for storage:</p>
-<pre><code class="language-FSharp">        abstract member Reset: version -&gt; Name -&gt; unit
-        abstract member TryGetLastSnapshot: version -&gt; Name -&gt; Option&lt;int * int * 'A&gt;
-        abstract member TryGetLastEventId: version -&gt; Name -&gt; Option&lt;int&gt;
-        abstract member TryGetLastSnapshotEventId: version -&gt; Name -&gt; Option&lt;int&gt;
-        abstract member TryGetLastSnapshotId: version -&gt; Name -&gt; Option&lt;int&gt;
-        abstract member TryGetEvent: version -&gt; int -&gt; Name -&gt; Option&lt;StorageEvent&lt;obj&gt;&gt;
-        abstract member SetSnapshot: version -&gt; int * 'A -&gt; Name -&gt; Result&lt;unit, string&gt;
-        abstract member AddEvents: version -&gt; List&lt;'E&gt; -&gt; Name -&gt; Result&lt;unit, string&gt;
-        abstract member MultiAddEvents:  List&lt;List&lt;obj&gt; * version * Name&gt;  -&gt; Result&lt;unit, string&gt;
-        abstract member GetEventsAfterId: version -&gt; int -&gt; Name -&gt; Result&lt; List&lt; int * 'E &gt;, string &gt;
-        abstract member GetEventsInATimeInterval: version -&gt; Name -&gt; DateTime -&gt; DateTime -&gt; List&lt;int * 'E &gt;
+<pre><code class="language-FSharp">    type IStorage =
+        abstract member Reset: Version -&gt; Name -&gt; unit
+        abstract member TryGetLastSnapshot: Version -&gt; Name -&gt; Option&lt;SnapId * EventId * Json&gt;
+        abstract member TryGetLastEventId: Version -&gt; Name -&gt; Option&lt;EventId&gt;
+        // toto: the following two can be unified
+        abstract member TryGetLastSnapshotEventId: Version -&gt; Name -&gt; Option&lt;EventId&gt;
+        abstract member TryGetLastSnapshotId: Version -&gt; Name -&gt; Option&lt;EventId * SnapshotId&gt;
+        abstract member TryGetSnapshotById: Version -&gt; Name -&gt; int -&gt;Option&lt;EventId * Json&gt;
+        abstract member TryGetEvent: Version -&gt; int -&gt; Name -&gt; Option&lt;StorageEventJson&gt;
+        abstract member SetSnapshot: Version -&gt; int * Json -&gt; Name -&gt; Result&lt;unit, string&gt;
+        abstract member AddEvents: Version -&gt; Name -&gt; List&lt;Json&gt; -&gt; Result&lt;List&lt;int&gt;, string&gt;
+        abstract member MultiAddEvents:  List&lt;List&lt;Json&gt; * Version * Name&gt;  -&gt; Result&lt;List&lt;List&lt;int&gt;&gt;, string&gt;
+        abstract member GetEventsAfterId: Version -&gt; int -&gt; Name -&gt; Result&lt; List&lt; EventId * Json &gt;, string &gt;
+        abstract member GetEventsInATimeInterval: Version -&gt; Name -&gt; DateTime -&gt; DateTime -&gt; List&lt;EventId * Json &gt;
+
 </code></pre>
 <p>I created also a &quot;lightweight&quot; version of the storage interface assuming that there are storage types where you will not need all the full storage interface.</p>
 <p>Reset must be used only for development and testing, and cannot be used in production. See Conf.fs.</p>
@@ -650,24 +637,24 @@ See <em>lightrepository</em></p>
 It is still experimental.
 <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/EventStoreStorage.fs">EventStoreBridge.fs</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="refactoring-strategy"><a class="header" href="#refactoring-strategy">Refactoring strategy</a></h1>
-<p>By aggregate refactoring I mean when we just move models (collection of entities) from one aggregate to another.</p>
-<p>Here I am showing a strategy for refactoring aggregates in terms of:</p>
+<p>By cluster refactoring I mean when we just move models (collection of entities) among clusters.</p>
+<p>Here I am showing a strategy for refactoring in terms of:</p>
 <ul>
-<li>moving the model's ownership between aggregates, </li>
-<li>introducing new aggregates </li>
-<li>upgrading old aggregates.</li>
-<li>dropping aggregates.</li>
+<li>moving the model's ownership between cluster, </li>
+<li>introducing new clusters </li>
+<li>upgrading old clusters.</li>
+<li>dropping clusters.</li>
 </ul>
-<p>The problem arises because it looks overcomplicated d to make upfront decisions about aggregates.</p>
-<p>It looks to me more convenient to have a few aggregates, for instance in a development and prototyping stage because this will simplify testing, prototyping, and building the application service layer.
-Consider the extreme when we have everything in a single aggregate. It would mean that the application service layer will be able to handle all the models with few lines of code (just building single command for the repository)</p>
-<p>However, at a later stage, proper refactoring is probably needed by moving models to different aggregates or creating new aggregates for performance reasons.</p>
-<p>Refactoring aggregates in that sense means leaving the application service layer behavior unchanged.</p>
+<p>The problem arises because it looks overcomplicated d to make upfront decisions about clusters.</p>
+<p>It looks to me more convenient to have a few clusters, for instance in a development and prototyping stage because this will simplify testing, prototyping, and building the application service layer.
+Consider the extreme when we have everything in a single cluster. It would mean that the application service layer will be able to handle all the models with few lines of code (just building single command for the repository)</p>
+<p>However, at a later stage, proper refactoring is probably needed for performance reasons.</p>
+<p>Refactoring leaves the application service layer behavior unchanged.</p>
 <p>The steps that may be followed are:</p>
 <ul>
-<li>defining new aggregates and eventually creating upgraded versions of current aggregates</li>
-<li>moving model ownership from old aggregates to new aggregates (or to updated versions of the same aggregates which is the same)</li>
-<li>creating an upgraded version of the application service layer using the new set of aggregates</li>
+<li>defining new clusters and eventually creating upgraded versions of current clusters</li>
+<li>moving entities ownership</li>
+<li>creating an upgraded version of the application service layer using the new versions</li>
 <li>applying the equivalent tests of the previous service layer to the new one.</li>
 </ul>
 <p>About this latest point, a parametric testing strategy is also possible.</p>
@@ -684,10 +671,10 @@ Consider the extreme when we have everything in a single aggregate. It would mea
     ]
 </code></pre>
 <p>There are specific attributes to distinguish current and &quot;upgrading&quot; versions of elements of the application. </p>
-<p>A migration function is needed to move data from old aggregates to new aggregates.</p>
+<p>A migration function is needed to extract data from the current version and store it in the upgraded version.</p>
 <p>Code here: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample.Test/MultiVersionsTests.fs">MultiVersionsTests.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
-<p>As I mentioned in the previous chapter we may have different versions of the same application based on different distribution of entities and aggregates and/or different storages.</p>
+<p>As I mentioned in the previous chapter we may have different versions of the same application based on different clustes.</p>
 <p>We may want to test all of them and also we may want to test the migration function from one version to another in those tests.
 A structure of a parametric test that considers various possible combinations of application versions and migration functions is the following:</p>
 <pre><code class="language-FSharp">

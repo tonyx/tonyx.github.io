@@ -147,12 +147,11 @@
                         <h1 id="repository"><a class="header" href="#repository">Repository</a></h1>
 <p>The repository has the responsibility of:</p>
 <ul>
-<li>getting the state of an aggregate</li>
+<li>getting the state</li>
 <li>trying to run commands passed, and eventually storing the related events.</li>
-<li>making periodic snapshots, according to the SnapshotsInterval parameter of the aggregate.
-(Remember that snapshots are explicitly used only in the Postgres and in-memory storage implementations)</li>
+<li>making periodic snapshots, according to the SnapshotsInterval.</li>
 </ul>
-<p>Here is an example of the private member that retrieves the last snapshot:</p>
+<p>Here is an example of the private member that retrieves the latest snapshot:</p>
 <pre><code class="language-FSharp">    let inline private getLastSnapshot&lt;'A 
         when 'A: (static member Zero: 'A) 
         and 'A: (static member StorageName: string)
@@ -173,7 +172,7 @@
 </code></pre>
 <p>This function uses the storage to retrieve a triple of the snapshot-Id, the related eventId and the snapshot itself, serialized as json.
 Note that the snapshot may be cached in memory so that the deserialization is done only once.</p>
-<p>To get the current state of an aggregate we need to get the last snapshot and the events that are after the snapshot.</p>
+<p>To get the current state of a cluster we need to get the last snapshot and the events that are after the snapshot.</p>
 <p>Here is an older version of how to get the state:</p>
 <pre><code class="language-Fsharp">    let inline getState&lt;'A, 'E
         when 'A: (static member Zero: 'A)
@@ -207,7 +206,7 @@ Note that the snapshot may be cached in memory so that the deserialization is do
             return (lastEventId, result)
         }
 </code></pre>
-<p>Now I show the current implementation that enables aggregate-state caching:</p>
+<p>Now I show the current implementation that enables cluster-state caching:</p>
 <pre><code class="language-FSharp">    let inline getState&lt;'A, 'E
         when 'A: (static member Zero: 'A)
         and 'A: (static member StorageName: string)
@@ -248,10 +247,10 @@ Note that the snapshot may be cached in memory so that the deserialization is do
             |&gt; Async.RunSynchronously
         StateCache&lt;'A&gt;.Instance.Memoize (fun () -&gt; eventuallyFromCache()) (lastEventId, 'A.StorageName)
 </code></pre>
-<p>In the above code, the state is a function of eventId, and so we can use this eventId as the key of a cache that stores the state of the aggregate.</p>
+<p>In the above code, the state is a function of eventId, and so we can use this eventId as the key of a cache that stores the state of the cluster.</p>
 <p>Note that here the evolve function is used, which is part of the core library.</p>
 <p>There are actually two similar evolve implementations:</p>
-<p>The basic implementation of the evolve is the one that cannot forgive any inconsistency in the  events passed as parameters with the current aggregate state:</p>
+<p>The basic implementation of the evolve is the one that cannot forgive any inconsistency in the  events passed as parameters with the current state:</p>
 <pre><code class="language-Fsharp">    let inline evolveUNforgivingErrors&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; (h: 'A) (events: List&lt;'E&gt;) =
         events
         |&gt; List.fold

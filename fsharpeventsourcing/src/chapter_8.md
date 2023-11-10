@@ -1,26 +1,26 @@
 # Refactoring strategy
 
-By aggregate refactoring I mean when we just move models (collection of entities) from one aggregate to another.
+By cluster refactoring I mean when we just move models (collection of entities) among clusters.
 
-Here I am showing a strategy for refactoring aggregates in terms of:  
-- moving the model's ownership between aggregates, 
-- introducing new aggregates 
-- upgrading old aggregates.
-- dropping aggregates.
+Here I am showing a strategy for refactoring in terms of:  
+- moving the model's ownership between cluster, 
+- introducing new clusters 
+- upgrading old clusters.
+- dropping clusters.
 
-The problem arises because it looks overcomplicated d to make upfront decisions about aggregates.
+The problem arises because it looks overcomplicated d to make upfront decisions about clusters.
 
-It looks to me more convenient to have a few aggregates, for instance in a development and prototyping stage because this will simplify testing, prototyping, and building the application service layer.
-Consider the extreme when we have everything in a single aggregate. It would mean that the application service layer will be able to handle all the models with few lines of code (just building single command for the repository)
+It looks to me more convenient to have a few clusters, for instance in a development and prototyping stage because this will simplify testing, prototyping, and building the application service layer.
+Consider the extreme when we have everything in a single cluster. It would mean that the application service layer will be able to handle all the models with few lines of code (just building single command for the repository)
 
-However, at a later stage, proper refactoring is probably needed by moving models to different aggregates or creating new aggregates for performance reasons.
+However, at a later stage, proper refactoring is probably needed for performance reasons.
 
-Refactoring aggregates in that sense means leaving the application service layer behavior unchanged.
+Refactoring leaves the application service layer behavior unchanged.
 
 The steps that may be followed are:
-- defining new aggregates and eventually creating upgraded versions of current aggregates
-- moving model ownership from old aggregates to new aggregates (or to updated versions of the same aggregates which is the same)
-- creating an upgraded version of the application service layer using the new set of aggregates
+- defining new clusters and eventually creating upgraded versions of current clusters
+- moving entities ownership
+- creating an upgraded version of the application service layer using the new versions
 - applying the equivalent tests of the previous service layer to the new one.
 
 About this latest point, a parametric testing strategy is also possible.
@@ -42,7 +42,7 @@ let allVersions =
 
 There are specific attributes to distinguish current and "upgrading" versions of elements of the application. 
 
-A migration function is needed to move data from old aggregates to new aggregates.
+A migration function is needed to extract data from the current version and store it in the upgraded version.
 
 Code here: [MultiVersionsTests.fs](https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample.Test/MultiVersionsTests.fs)
 

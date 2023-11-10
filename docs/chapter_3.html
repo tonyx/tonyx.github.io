@@ -145,20 +145,20 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="events"><a class="header" href="#events">Events</a></h1>
-<p>As I said before, some members of an aggregate act virtually as &quot;state changers&quot;, operating add/update/delete on some of the entities that it handles.
-Each aggregate has events and commands as kdiscriminated unions (DU) with cases associated to those members.</p>
-<p>An event is something that, when processed, returns a new state of the aggregate or an error, which fits the following definition taken from the Core.fs file:</p>
+<p>As I said before, some instance members of a cluster act virtually as &quot;state changers&quot;, operating add/update/delete on some of the entities that it handles.
+Events and commands are  discriminated unions (DU) with cases associated to those members.</p>
+<p>An event is something that, when processed, returns a new state or an error, which fits the following definition taken from the Core.fs file:</p>
 <pre><code class="language-FSharp">    type Event&lt;'A&gt; =
         abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
 </code></pre>
-<p>The <em>'A</em> is the generic aggregate type the event is associated with.</p>
-<p>This is an example of a concrete implementation of an event related to the TodoAggregate members <em>Add</em> and <em>Remove</em>.
-Particularly, the <em>TodoAdded</em> event is associated to the <em>AddTodo</em> member and the <em>TodoRemoved</em> event is associated to the <em>RemoveTodo</em> member and the <em>Process</em> member of the event is implemented by calling the related aggregate member.</p>
+<p>The <em>'A</em> is the generic cluster type the event is associated with.</p>
+<p>This is an example of a concrete implementation of an event related to the TodoCluster members <em>Add</em> and <em>Remove</em>.
+Particularly, the <em>TodoAdded</em> event is associated to the <em>AddTodo</em> member and the <em>TodoRemoved</em> event is associated to the <em>RemoveTodo</em> member and the <em>Process</em> member of the event is implemented by calling the related clusters member.</p>
 <pre><code class="language-Fsharp">    type TodoEvent =
         | TodoAdded of Todo
         | TodoRemoved of Guid
-            interface Event&lt;TodosAggregate&gt; with
-                member this.Process (x: TodosAggregate ) =
+            interface Event&lt;TodosCluster&gt; with
+                member this.Process (x: TodosCluster ) =
                     match this with
                     | TodoAdded (t: Todo) -&gt; 
                         x.AddTodo t
@@ -166,22 +166,6 @@ Particularly, the <em>TodoAdded</em> event is associated to the <em>AddTodo</em>
                         x.RemoveTodo g
 
 </code></pre>
-<p>You may want to do do event caching by wrapping the call to the specific aggregate member in a lambda expression without evaluating it and passing it to a specific cache manager that may eventually evaluate it and return the result or the cached result if the event has already been processed.</p>
-<pre><code class="language-Fsharp">    type TodoEvent =
-        | TodoAdded of Todo
-        | TodoRemoved of Guid
-            interface Event&lt;TodosAggregate&gt; with
-                member this.Process (x: TodosAggregate ) =
-                    match this with
-                    | TodoAdded (t: Todo) -&gt; 
-                        EventCache&lt;TodosAggregate&gt;.Instance.Memoize (fun () -&gt; x.AddTodo t) (x, [TodoAdded t]) 
-                    | TodoRemoved (g: Guid) -&gt; 
-                        EventCache&lt;TodosAggregate&gt;.Instance.Memoize (fun () -&gt; x.RemoveTodo g) (x, [TodoRemoved t]) 
-</code></pre>
-<p>Having said that about caching, I wanrn that caching events don't look so much like a &quot;performance booster&quot;. It looks more promising the caching of the state of the aggregate (see the next section).</p>
-<p>Therefore event Caching is disabled by default. See &quot;EVENTS_CACHING_ENABLED&quot; in the project file: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/Sharpino.Lib.fsproj">project file</a>
-To enable the caching of events, the library must be compiled with the following compilation symbol: <code>EVENTS_CACHING_ENABLED</code>.
-(unfortunately, at the moment - verson 1.0.1, you cannot change it if you add the library from nugt. You need to clone the repo and compile it yourself).</p>
 <p>Source code:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Events.fs">Events.fs</a></p>
 
                     </main>

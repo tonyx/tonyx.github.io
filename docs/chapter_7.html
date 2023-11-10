@@ -145,21 +145,25 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="storage"><a class="header" href="#storage">Storage</a></h1>
-<p>A storage stores and retrieves events and snapshots related to each single aggregate.</p>
-<p>In a strict way storage ensures transactionality particularly in special cases like when adding events related to multiple aggregates.</p>
+<p>A storage stores and retrieves events and snapshots related to each single cluster.</p>
+<p>In a strict way storage ensures transactionality particularly in special cases like when adding events related to multiple clusters.</p>
 <p>In a general sense, there is the possibility of supporting storages that lack transactionality between multiple streams,  and that is the case of the <em>EventStoreBridge</em> (or, in the future, Kafa etc..)</p>
 <p>Here is the abstract definition of members required for storage:</p>
-<pre><code class="language-FSharp">        abstract member Reset: version -&gt; Name -&gt; unit
-        abstract member TryGetLastSnapshot: version -&gt; Name -&gt; Option&lt;int * int * 'A&gt;
-        abstract member TryGetLastEventId: version -&gt; Name -&gt; Option&lt;int&gt;
-        abstract member TryGetLastSnapshotEventId: version -&gt; Name -&gt; Option&lt;int&gt;
-        abstract member TryGetLastSnapshotId: version -&gt; Name -&gt; Option&lt;int&gt;
-        abstract member TryGetEvent: version -&gt; int -&gt; Name -&gt; Option&lt;StorageEvent&lt;obj&gt;&gt;
-        abstract member SetSnapshot: version -&gt; int * 'A -&gt; Name -&gt; Result&lt;unit, string&gt;
-        abstract member AddEvents: version -&gt; List&lt;'E&gt; -&gt; Name -&gt; Result&lt;unit, string&gt;
-        abstract member MultiAddEvents:  List&lt;List&lt;obj&gt; * version * Name&gt;  -&gt; Result&lt;unit, string&gt;
-        abstract member GetEventsAfterId: version -&gt; int -&gt; Name -&gt; Result&lt; List&lt; int * 'E &gt;, string &gt;
-        abstract member GetEventsInATimeInterval: version -&gt; Name -&gt; DateTime -&gt; DateTime -&gt; List&lt;int * 'E &gt;
+<pre><code class="language-FSharp">    type IStorage =
+        abstract member Reset: Version -&gt; Name -&gt; unit
+        abstract member TryGetLastSnapshot: Version -&gt; Name -&gt; Option&lt;SnapId * EventId * Json&gt;
+        abstract member TryGetLastEventId: Version -&gt; Name -&gt; Option&lt;EventId&gt;
+        // toto: the following two can be unified
+        abstract member TryGetLastSnapshotEventId: Version -&gt; Name -&gt; Option&lt;EventId&gt;
+        abstract member TryGetLastSnapshotId: Version -&gt; Name -&gt; Option&lt;EventId * SnapshotId&gt;
+        abstract member TryGetSnapshotById: Version -&gt; Name -&gt; int -&gt;Option&lt;EventId * Json&gt;
+        abstract member TryGetEvent: Version -&gt; int -&gt; Name -&gt; Option&lt;StorageEventJson&gt;
+        abstract member SetSnapshot: Version -&gt; int * Json -&gt; Name -&gt; Result&lt;unit, string&gt;
+        abstract member AddEvents: Version -&gt; Name -&gt; List&lt;Json&gt; -&gt; Result&lt;List&lt;int&gt;, string&gt;
+        abstract member MultiAddEvents:  List&lt;List&lt;Json&gt; * Version * Name&gt;  -&gt; Result&lt;List&lt;List&lt;int&gt;&gt;, string&gt;
+        abstract member GetEventsAfterId: Version -&gt; int -&gt; Name -&gt; Result&lt; List&lt; EventId * Json &gt;, string &gt;
+        abstract member GetEventsInATimeInterval: Version -&gt; Name -&gt; DateTime -&gt; DateTime -&gt; List&lt;EventId * Json &gt;
+
 </code></pre>
 <p>I created also a &quot;lightweight&quot; version of the storage interface assuming that there are storage types where you will not need all the full storage interface.</p>
 <p>Reset must be used only for development and testing, and cannot be used in production. See Conf.fs.</p>

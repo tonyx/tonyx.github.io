@@ -1,7 +1,7 @@
 # Commands
 
-We must define a command type for each aggregate.
-A Command type is concretely represented by a Discriminated Union. Executing the command on a specific aggregate means returning a proper list of events that can be applied (processed) to the aggregate, or returning an error.
+We must define command types.
+A Command type is concretely represented by a Discriminated Union. Executing the command on a specific cluster means returning a proper list of events that can be applied (processed)  or returning an error.
 I can also specify _"command undoers"_, that allow to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the related command.
 For instance the "under" of AddTodo is the related RemoveTodo (see next paragraph).
 
@@ -24,8 +24,8 @@ Example:
         | AddTodo of Todo
         | RemoveTodo of Guid
 
-        interface Command<TodosAggregate, TodoEvent> with
-            member this.Execute (x: TodosAggregate) =
+        interface Command<TodosCluster, TodoEvent> with
+            member this.Execute (x: TodosCluster) =
                 match this with
                 | AddTodo t -> 
                     match x.AddTodo t with
@@ -45,8 +45,8 @@ It is possible, although uncommon, to have, for a command, cases that can return
     type TodoCommand =
         [...]
         | Add2Todos of Todo * Todo
-        interface Command<TodosAggregate, TodoEvent> with
-            member this.Execute (x: TodosAggregate) =
+        interface Command<TodosCluster, TodoEvent> with
+            member this.Execute (x: TodosClusten) =
             [...]
             match this with
             | Add2Todos (t1, t2) -> 
@@ -60,13 +60,13 @@ It is possible, although uncommon, to have, for a command, cases that can return
             member this.Undoer
 
 ```
-Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed on the current aggregate state, give an Ok result, i.e. a valid aggregate state (and no error). 
+Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed on the current state, give an Ok result, i.e. a valid state (and no error). 
 For that reason, before returning the events, I invoked the "evolveUNforgivingErrors" function to "probe" the sequence of two events to be eventually returned and see if the result is a valid state.
-The evolveUNforgivingErrors processes some events to a given state of the aggregate returning an error or a valid state.
-This does not mean that we will be able to process properly the events returned by the command, because the aggregate state may have changed in the meantime in case we don't handle concurrencly in a strict way.
+The evolveUNforgivingErrors processes some events to a given state returning an error or a valid state.
+This does not mean that we will be able to process properly the events returned by the command, because the state may have changed in the meantime in case we don't handle concurrencly in a strict way.
 Therefore I assume that the events stored could be inconsistent. For that reason to process the stored events we will use an _evolve_ function that is able to "tolerate" (and anyway log), inconsistent events.
 
-Thus the _evolve_ will just skip events that, when processed give error, and can return a valid aggregate state anyway. 
+Thus the _evolve_ will just skip events that, when processed give error, and can return a valid state anyway. 
 The way evolve can forgive inconsistent events is a form of optimistic locking: you may eventually add events to the storage that end up in an inconsistent state. They will just be ignored. That means: you can avoid single thread, or locks in command processing.
 
 Commands can use event caching if it is enabled as we have seen in the previous section.
@@ -90,16 +90,16 @@ I am going to show an example of an _undoer_. Let me remind the abstract definit
         abstract member Undoer: Option<'A -> Result<Undoer<'A, 'E>, string>>
 ```
 
-Given the current state of the aggregate, the "command undoer" returns a function that, applied to the aggregate state, must return the actual _undoer_.
+Given the current state, the "command undoer" returns a function that, applied to the  state, must return the actual _undoer_.
 
 So the undoers work in two shots: one to build a context for the eventual future undo, and one to actually... _do_ the _undo!_. 
 
 __Example of "undoer"__ :
 
-The _RemoveTag_ command returns a list of TagRemoved events. We know that when those events are processed the result is the aggregate without the tags.
+The _RemoveTag_ command returns a list of TagRemoved events. We know that when those events are processed the result is the new cluster state without the tags.
 However, we may want to roll back the effect of those events by adding events that reverse their effect.
 
-This applies to a transaction context: you need to be able to re-add the tag to the aggregate state. For this reason, you need to build a context _before_ the removal so that the tag to be eventually readded is still available.
+This applies to a transaction context: you need to be able to re-add the tag to the state. For this reason, you need to build a context _before_ the removal so that the tag to be eventually readded is still available.
 
 From the code with some comments:
 
@@ -109,16 +109,16 @@ From the code with some comments:
         | RemoveTag g -> 
             // block to be executed before the actual command removing tag 
             // is executed. It will return another function with the context needed (the tag itself)
-            (fun (x: TagsAggregate) ->
+            (fun (x: TagsCluster) ->
                 result {
                     let! tag = x.GetTag g
                     let result =
 
                         // block to be executed after the actual command removing tag is executed.  
-                        // It will return the list of events to be applied to the aggregate state to compensate the effect of the command. 
-                        // Note that the tag is the context needed to readd the tag to the aggregate state.
+                        // It will return the list of events to be applied to the cluster state to compensate the effect of the command. 
+                        // Note that the tag is the context needed to readd the tag to the  state.
 
-                        fun (x': TagsAggregate) ->
+                        fun (x': TagsCluster) ->
                             x'.AddTag tag 
                             |> Result.map (fun _ -> [TagAdded tag])
                     return result
@@ -128,8 +128,8 @@ From the code with some comments:
         | AddTag t ->
             // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. 
             // The context is the tag itself (particularly its id), that can't be lost during the transaction.
-            (fun (_: TagsAggregate) ->
-                fun (x': TagsAggregate) ->
+            (fun (_: TagsCluster) ->
+                fun (x': TagsCluster) ->
                     x'.RemoveTag t.Id 
                     |> Result.map (fun _ -> [TagAdded t])
                 |> Ok
@@ -139,6 +139,6 @@ From the code with some comments:
 ```
 
 
-Source code: [Commands.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Commands.fs))
+Source code: [Commands.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/clusters/Todos/Commands.fs))
 
 

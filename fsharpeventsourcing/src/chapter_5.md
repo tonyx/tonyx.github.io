@@ -1,8 +1,8 @@
 # Application service layer
 
-An application service layer provides services that use Repository and Storage to get the state and/or send commands to one or more aggregates (eventually in an atomic/transactional way with potential performance issues) and store the related events.
+An application service layer provides services that use Repository and Storage to get the state and/or send commands to one or more clusters (eventually in an atomic/transactional way with potential performance issues) and store the related events.
 
-Here is one of the simplest examples of an entry for a service involving a single aggregate, by building and running an AddTag command.
+Here is one of the simplest examples of an entry for a service involving a single cluster, by building and running an AddTag command.
 
 
 ```FSharp
@@ -11,23 +11,23 @@ Here is one of the simplest examples of an entry for a service involving a singl
             let! _ =
                 tag
                 |> AddTag
-                |> (runCommand<TagsAggregate, TagEvent> storage)
+                |> (runCommand<TagsCluster, TagEvent> storage)
             return ()
         }
 ```
 
 The service layer sends commands to the repository so that this one can run it producing and storing the related events.
 
-The following example shows a service layer that uses two aggregates and an explicit lock (note that the lock object concept to handle transactions has been substituted by a mailboxprocessor (actor model). Still I'm not sure if the lock object approach deserved to be dismissed).
+The following example shows a service layer that uses two clusters and an explicit lock (note that the lock object concept to handle transactions has been substituted by a mailboxprocessor (actor model). Still I'm not sure if the lock object approach deserved to be dismissed).
 As mentioned in the previous section its not a big deal avoiding any locking or mailboxprocessor (single thread) command processing: the worst that may happen is that the events stored are inconsistent and will be skipped by the "evolve" function.
 
-In the following case I assume that the aggregates where using lock objects to handle transactions (which is not the case anymore).
+In the following case I assume that the cluster where using lock objects to handle transactions (which is not the case anymore).
 
 ```FSharp
     member this.addTodo todo =
-        lock TagsAggregate.LockObj <| fun () ->
+        lock TagsCluster.LockObj <| fun () ->
             result {
-                let! (_, tagState) = getState<TagsAggregate, TagEvent>(storage)
+                let! (_, tagState) = getState<TagsCluster, TagEvent>(storage)
                 let tagIds = tagState.GetTags() |>> (fun x -> x.Id)
 
                 let! tagIdIsValid =    
@@ -38,7 +38,7 @@ In the following case I assume that the aggregates where using lock objects to h
                 return! 
                     todo
                     |> TodoCommand.AddTodo
-                    |> (runCommand<TodosAggregate, TodoEvent> storage)
+                    |> (runCommand<TodosCluster, TodoEvent> storage)
             }
 ```
 
@@ -50,7 +50,7 @@ Now I am showing how I decided to deal with the same issue of making the code sa
         member this.AddTodo todo =
             let f = fun () ->
                 ResultCE.result {
-                    let! (_, tagState) = storage |> getState<TagsAggregate, TagEvent> 
+                    let! (_, tagState) = storage |> getState<TagsCluster, TagEvent> 
                     let tagIds = tagState.GetTags() |>> (fun x -> x.Id)
 
                     let! tagIdIsValid =    
@@ -61,10 +61,10 @@ Now I am showing how I decided to deal with the same issue of making the code sa
                     let! _ =
                         todo
                         |> TodoCommand.AddTodo
-                        |> runCommand<TodosAggregate, TodoEvent> storage
+                        |> runCommand<TodosCluster, TodoEvent> storage
                     let _ = 
                         storage
-                        |> mkSnapshotIfInterval<TodosAggregate, TodoEvent>
+                        |> mkSnapshotIfInterval<TodosCluster, TodoEvent>
                 return ()
             }
             async {
@@ -75,9 +75,9 @@ Now I am showing how I decided to deal with the same issue of making the code sa
 
 The entire expression is wrapped in an async block and the processor.PostAndReply function is used to send the function f to the processor and wait for the result (again: the processor is a single thread message processor that may not be required anymore).
 
-Basically this approach ensures single-thread processing but may slow down the processing of commands if the aggregate is involved in a long-running transaction.
+Basically this approach ensures single-thread processing but may slow down the transaction.
 
-Another example is the following, about sending commands to more aggregates.
+Another example is the following, about sending commands to more clusters.
 This code removes the tag with any reference to it. It builds two commands and makes the repository process them at the same time.
 This code removes a tag and any reference to it.
 
@@ -86,7 +86,7 @@ This code removes a tag and any reference to it.
         ResultCE.result {
             let removeTag = TagCommand.RemoveTag id
             let removeTagRef = TodoCommand.RemoveTagRef id
-            let! _ = runTwoCommands<TagsAggregate, TodosAggregate, TagEvent, TodoEvent> storage removeTag removeTagRef
+            let! _ = runTwoCommands<TagsCluster, TodosCluster, TagEvent, TodoEvent> storage removeTag removeTagRef
             return ()
         }
 ```

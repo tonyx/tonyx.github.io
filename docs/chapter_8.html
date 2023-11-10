@@ -145,24 +145,24 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="refactoring-strategy"><a class="header" href="#refactoring-strategy">Refactoring strategy</a></h1>
-<p>By aggregate refactoring I mean when we just move models (collection of entities) from one aggregate to another.</p>
-<p>Here I am showing a strategy for refactoring aggregates in terms of:</p>
+<p>By cluster refactoring I mean when we just move models (collection of entities) among clusters.</p>
+<p>Here I am showing a strategy for refactoring in terms of:</p>
 <ul>
-<li>moving the model's ownership between aggregates, </li>
-<li>introducing new aggregates </li>
-<li>upgrading old aggregates.</li>
-<li>dropping aggregates.</li>
+<li>moving the model's ownership between cluster, </li>
+<li>introducing new clusters </li>
+<li>upgrading old clusters.</li>
+<li>dropping clusters.</li>
 </ul>
-<p>The problem arises because it looks overcomplicated d to make upfront decisions about aggregates.</p>
-<p>It looks to me more convenient to have a few aggregates, for instance in a development and prototyping stage because this will simplify testing, prototyping, and building the application service layer.
-Consider the extreme when we have everything in a single aggregate. It would mean that the application service layer will be able to handle all the models with few lines of code (just building single command for the repository)</p>
-<p>However, at a later stage, proper refactoring is probably needed by moving models to different aggregates or creating new aggregates for performance reasons.</p>
-<p>Refactoring aggregates in that sense means leaving the application service layer behavior unchanged.</p>
+<p>The problem arises because it looks overcomplicated d to make upfront decisions about clusters.</p>
+<p>It looks to me more convenient to have a few clusters, for instance in a development and prototyping stage because this will simplify testing, prototyping, and building the application service layer.
+Consider the extreme when we have everything in a single cluster. It would mean that the application service layer will be able to handle all the models with few lines of code (just building single command for the repository)</p>
+<p>However, at a later stage, proper refactoring is probably needed for performance reasons.</p>
+<p>Refactoring leaves the application service layer behavior unchanged.</p>
 <p>The steps that may be followed are:</p>
 <ul>
-<li>defining new aggregates and eventually creating upgraded versions of current aggregates</li>
-<li>moving model ownership from old aggregates to new aggregates (or to updated versions of the same aggregates which is the same)</li>
-<li>creating an upgraded version of the application service layer using the new set of aggregates</li>
+<li>defining new clusters and eventually creating upgraded versions of current clusters</li>
+<li>moving entities ownership</li>
+<li>creating an upgraded version of the application service layer using the new versions</li>
 <li>applying the equivalent tests of the previous service layer to the new one.</li>
 </ul>
 <p>About this latest point, a parametric testing strategy is also possible.</p>
@@ -179,7 +179,7 @@ Consider the extreme when we have everything in a single aggregate. It would mea
     ]
 </code></pre>
 <p>There are specific attributes to distinguish current and &quot;upgrading&quot; versions of elements of the application. </p>
-<p>A migration function is needed to move data from old aggregates to new aggregates.</p>
+<p>A migration function is needed to extract data from the current version and store it in the upgraded version.</p>
 <p>Code here: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample.Test/MultiVersionsTests.fs">MultiVersionsTests.fs</a></p>
 
                     </main>
