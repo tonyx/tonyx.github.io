@@ -1,9 +1,9 @@
 # Refactoring strategy
 
-By cluster refactoring I mean when we just move models (collection of entities) among clusters.
+By cluster refactoring, I mean when we just move models (collections of entities) among clusters.
 
 Here I am showing a strategy for refactoring in terms of:  
-- moving the model's ownership between cluster, 
+- moving the model's ownership between clusters, 
 - introducing new clusters 
 - upgrading old clusters.
 - dropping clusters.

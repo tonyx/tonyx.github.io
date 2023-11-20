@@ -145,8 +145,10 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="clusters"><a class="header" href="#clusters">Clusters</a></h1>
-<p>You can define a cluster as a record with static and instance members. It handles one or more collections of entities. The crucial role of the cluster is that I can get the current state of any cluster by processing the stored events using the <em>evolve</em> function. As we will see later, the <em>events</em> are closely related to the members of the cluster that are meant to &quot;virtually&quot; change the state of the cluster (there is no actual change because we are using immutable data structures).</p>
-<p>Given that the state of the cluster is a function of the related events processed and stored, it needs the following information associated that I defined as mandatory, static members:</p>
+<p>A cluster is just a group of collections of entities that form a transactional boundary.
+Clusters will be associated with streams of events.
+You can get the current state of any cluster by processing the stored events using the <em>evolve</em> function.  <em>events</em> are closely related to members of the cluster that end up in Update/Delete/Remove of some entity (even though there is no actual change because we are using immutable data structures).</p>
+<p>Static members that are mandatory for any cluster of entities are:</p>
 <ul>
 <li>
 <p><strong>Zero</strong>: the initial state (no events yet).</p>
@@ -155,16 +157,16 @@
 <p><strong>StorageName</strong> and  <strong>Version</strong>: this combination uniquely identifies the cluster and lets the storage know in which stream to store events and snapshots. Whatever will be the storage (memory, Postgres, EventstoreDb, etc.) the cluster will be stored in a stream named as the concatenation of the <em>StorageName</em> and the <em>Version</em> (i.e. &quot;_todo_01&quot;)</p>
 </li>
 <li>
-<p><strong>Lock</strong>: 
-An application layer can rely on locks to ensure inter-cluster integrity (invariant conditions involving models handled by separate clusters).</p>
+<p><strong>Lock</strong>: a lock object is used to protect the cluster from concurrent access.
+The Command handler uses Locks. An application layer may use locks when involves multiple streams of events.</p>
+</li>
+<li>
+<p><strong>SnapshotsInterval</strong>: the number of events that can be stored after a snapshot before creating a new snapshot (i.e. the number of events between snapshots)</p>
 </li>
 </ul>
-<p>Wrap up: we may use no lock at all and just accept that unconsistent events may be stored because of concurrent processing, or we may use locks to ensure that commands are processed one at a time, or we may use mailboxprocessor to use single thread processing for any command.</p>
-<ul>
-<li><strong>SnapshotsInterval</strong>: the number of the events that can be stored after a snapshot before creating a new snapshot (i.e. the number of events between snapshots)</li>
-</ul>
-<p>In all my current implementations of storage  (<em>in memory</em>,  <em>Postgres</em> and <em>EventstoreDb</em>)  the state of any cluster is rebuilt starting from the latest available snapshot and applying the events that are after the snapshot. The current state of any cluster may also be cached.</p>
-<p>Example:</p>
+<p>The Command handler returns the updated state of any cluster by applying the events that are stored after the latest valid state (which is cached in memory).
+The Command handler is also able to rebuild the state starting from the last stored snapshot.</p>
+<p>Example of a cluster of entities handling the todos and the categories:</p>
 <pre><code class="language-FSharp">    type TodosCluster =
         {
             todos: Todos
@@ -182,8 +184,8 @@ An application layer can rely on locks to ensure inter-cluster integrity (invari
         static member SnapshotsInterval =
             15
 </code></pre>
-<p>Some instance members virtually change the state in the sense that they return a new  instance in a different state or an error. It means that such members will <em>add/update/delete</em>  some of their entities. We will be able to associate those members with  <em>events</em> (see next section).
-In the following example, the TodosCluster manages the todos and the categories entities so it will be able to check the validity of the categories referenced by any todo before adding it (to preserve the rule that you can add only todo with category-Ids related to existing categories).
+<p>Some instance members virtually change the state in the sense that they return a new instance in a different state or an error. It means that such members will <em>add/update/delete</em> some of their entities. you need to associate those members with <em>events</em> and <em>commands</em> (see next section).
+In the following example, the TodosCluster can check the validity of the categories referenced by any todo before adding it (to preserve the invariant rule that you can add only todo with valid category ID references).
 It uses the &quot;result&quot; computational expression included in the FsToolkit.ErrorHandling library which supports the <a href="https://fsharpforfunandprofit.com/rop/"><em>railway-oriented programming</em></a> pattern of handling errors.</p>
 <p>Example:</p>
 <pre><code class="language-FSharp">    member this.AddTodo (t: Todo) =
@@ -203,7 +205,7 @@ It uses the &quot;result&quot; computational expression included in the FsToolki
                     }
             }
 </code></pre>
-<p>Wrap-up: Wile adding/removing/updating entities in a clustee we can protect any invariant conditions related to other entities that we have put under the same cluster without the need for any explicit transaction because at that level there is no awareness of the storage. Still, I will show that we can protect other invariant conditions that may involve entities of other clusters. This will be possible at the service application layer (see in the next sections) running commands involving multiple streams streams of events. This sometimes will involve the use of explicit transactions when supported by the storage (i.e. Postgres), and sometimes will involve the &quot;undoer&quot;: a special command attached to a command to undo the changes made by the command itself (see the next sections), useful when the storage does not support multiple stream transactions.</p>
+<p>Conclusions: In adding/removing/updating entities in a cluster we can protect any invariant conditions related to other entities that are under the same cluster without the need for any explicit transaction. We can protect other invariant conditions that may involve entities of other clusters anyway. This will be possible at the service application layer (see in the next sections) running commands involving multiple streams of events. This sometimes will involve the use of explicit transactions when supported by the storage (i.e. Postgres), and sometimes will involve the &quot;undoer&quot;: a special command attached to a command to undo the changes made by the command itself (see the next sections), useful when the storage does not support multiple stream transactions.</p>
 <p>Source code: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/clusters/Todos/Cluster.fs">TodosCluster.fs</a></p>
 
                     </main>

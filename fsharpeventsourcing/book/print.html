@@ -191,8 +191,10 @@ Note that in a popular full-stack development FSharp technology (<a href="https:
 This means that we would define the &quot;Todo&quot;, the &quot;Tag&quot; and the &quot;Category&quot; types in a shared project.</p>
 <p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/entities/Todos.fs">TodosModel.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="clusters"><a class="header" href="#clusters">Clusters</a></h1>
-<p>You can define a cluster as a record with static and instance members. It handles one or more collections of entities. The crucial role of the cluster is that I can get the current state of any cluster by processing the stored events using the <em>evolve</em> function. As we will see later, the <em>events</em> are closely related to the members of the cluster that are meant to &quot;virtually&quot; change the state of the cluster (there is no actual change because we are using immutable data structures).</p>
-<p>Given that the state of the cluster is a function of the related events processed and stored, it needs the following information associated that I defined as mandatory, static members:</p>
+<p>A cluster is just a group of collections of entities that form a transactional boundary.
+Clusters will be associated with streams of events.
+You can get the current state of any cluster by processing the stored events using the <em>evolve</em> function.  <em>events</em> are closely related to members of the cluster that end up in Update/Delete/Remove of some entity (even though there is no actual change because we are using immutable data structures).</p>
+<p>Static members that are mandatory for any cluster of entities are:</p>
 <ul>
 <li>
 <p><strong>Zero</strong>: the initial state (no events yet).</p>
@@ -201,16 +203,16 @@ This means that we would define the &quot;Todo&quot;, the &quot;Tag&quot; and th
 <p><strong>StorageName</strong> and  <strong>Version</strong>: this combination uniquely identifies the cluster and lets the storage know in which stream to store events and snapshots. Whatever will be the storage (memory, Postgres, EventstoreDb, etc.) the cluster will be stored in a stream named as the concatenation of the <em>StorageName</em> and the <em>Version</em> (i.e. &quot;_todo_01&quot;)</p>
 </li>
 <li>
-<p><strong>Lock</strong>: 
-An application layer can rely on locks to ensure inter-cluster integrity (invariant conditions involving models handled by separate clusters).</p>
+<p><strong>Lock</strong>: a lock object is used to protect the cluster from concurrent access.
+The Command handler uses Locks. An application layer may use locks when involves multiple streams of events.</p>
+</li>
+<li>
+<p><strong>SnapshotsInterval</strong>: the number of events that can be stored after a snapshot before creating a new snapshot (i.e. the number of events between snapshots)</p>
 </li>
 </ul>
-<p>Wrap up: we may use no lock at all and just accept that unconsistent events may be stored because of concurrent processing, or we may use locks to ensure that commands are processed one at a time, or we may use mailboxprocessor to use single thread processing for any command.</p>
-<ul>
-<li><strong>SnapshotsInterval</strong>: the number of the events that can be stored after a snapshot before creating a new snapshot (i.e. the number of events between snapshots)</li>
-</ul>
-<p>In all my current implementations of storage  (<em>in memory</em>,  <em>Postgres</em> and <em>EventstoreDb</em>)  the state of any cluster is rebuilt starting from the latest available snapshot and applying the events that are after the snapshot. The current state of any cluster may also be cached.</p>
-<p>Example:</p>
+<p>The Command handler returns the updated state of any cluster by applying the events that are stored after the latest valid state (which is cached in memory).
+The Command handler is also able to rebuild the state starting from the last stored snapshot.</p>
+<p>Example of a cluster of entities handling the todos and the categories:</p>
 <pre><code class="language-FSharp">    type TodosCluster =
         {
             todos: Todos
@@ -228,8 +230,8 @@ An application layer can rely on locks to ensure inter-cluster integrity (invari
         static member SnapshotsInterval =
             15
 </code></pre>
-<p>Some instance members virtually change the state in the sense that they return a new  instance in a different state or an error. It means that such members will <em>add/update/delete</em>  some of their entities. We will be able to associate those members with  <em>events</em> (see next section).
-In the following example, the TodosCluster manages the todos and the categories entities so it will be able to check the validity of the categories referenced by any todo before adding it (to preserve the rule that you can add only todo with category-Ids related to existing categories).
+<p>Some instance members virtually change the state in the sense that they return a new instance in a different state or an error. It means that such members will <em>add/update/delete</em> some of their entities. you need to associate those members with <em>events</em> and <em>commands</em> (see next section).
+In the following example, the TodosCluster can check the validity of the categories referenced by any todo before adding it (to preserve the invariant rule that you can add only todo with valid category ID references).
 It uses the &quot;result&quot; computational expression included in the FsToolkit.ErrorHandling library which supports the <a href="https://fsharpforfunandprofit.com/rop/"><em>railway-oriented programming</em></a> pattern of handling errors.</p>
 <p>Example:</p>
 <pre><code class="language-FSharp">    member this.AddTodo (t: Todo) =
@@ -249,18 +251,18 @@ It uses the &quot;result&quot; computational expression included in the FsToolki
                     }
             }
 </code></pre>
-<p>Wrap-up: Wile adding/removing/updating entities in a clustee we can protect any invariant conditions related to other entities that we have put under the same cluster without the need for any explicit transaction because at that level there is no awareness of the storage. Still, I will show that we can protect other invariant conditions that may involve entities of other clusters. This will be possible at the service application layer (see in the next sections) running commands involving multiple streams streams of events. This sometimes will involve the use of explicit transactions when supported by the storage (i.e. Postgres), and sometimes will involve the &quot;undoer&quot;: a special command attached to a command to undo the changes made by the command itself (see the next sections), useful when the storage does not support multiple stream transactions.</p>
+<p>Conclusions: In adding/removing/updating entities in a cluster we can protect any invariant conditions related to other entities that are under the same cluster without the need for any explicit transaction. We can protect other invariant conditions that may involve entities of other clusters anyway. This will be possible at the service application layer (see in the next sections) running commands involving multiple streams of events. This sometimes will involve the use of explicit transactions when supported by the storage (i.e. Postgres), and sometimes will involve the &quot;undoer&quot;: a special command attached to a command to undo the changes made by the command itself (see the next sections), useful when the storage does not support multiple stream transactions.</p>
 <p>Source code: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/clusters/Todos/Cluster.fs">TodosCluster.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="events"><a class="header" href="#events">Events</a></h1>
-<p>As I said before, some instance members of a cluster act virtually as &quot;state changers&quot;, operating add/update/delete on some of the entities that it handles.
-Events and commands are  discriminated unions (DU) with cases associated to those members.</p>
-<p>An event is something that, when processed, returns a new state or an error, which fits the following definition taken from the Core.fs file:</p>
+<p>Events are discriminated unions (DU) with cases associated with members of the cluster doing <em>add</em>/<em>update</em>/<em>delete</em>/ entities.</p>
+<p>When we process an event it returns a new state or an error, which fits the following definition of Process taken from the Core.fs file:</p>
 <pre><code class="language-FSharp">    type Event&lt;'A&gt; =
         abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
 </code></pre>
 <p>The <em>'A</em> is the generic cluster type the event is associated with.</p>
-<p>This is an example of a concrete implementation of an event related to the TodoCluster members <em>Add</em> and <em>Remove</em>.
-Particularly, the <em>TodoAdded</em> event is associated to the <em>AddTodo</em> member and the <em>TodoRemoved</em> event is associated to the <em>RemoveTodo</em> member and the <em>Process</em> member of the event is implemented by calling the related clusters member.</p>
+<p>This is an example of a concrete implementation of an event related to the TodoCluster members <em>Add</em> and <em>Remove</em>.</p>
+<p>So, for example, the <em>TodoAdded</em> event is associated with the <em>AddTodo</em> member.
+The <em>Process</em> member of the event is implemented by calling the related clusters member.</p>
 <pre><code class="language-Fsharp">    type TodoEvent =
         | TodoAdded of Todo
         | TodoRemoved of Guid
@@ -275,10 +277,9 @@ Particularly, the <em>TodoAdded</em> event is associated to the <em>AddTodo</em>
 </code></pre>
 <p>Source code:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Events.fs">Events.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
-<p>We must define command types.
-A Command type is concretely represented by a Discriminated Union. Executing the command on a specific cluster means returning a proper list of events that can be applied (processed)  or returning an error.
-I can also specify <em>&quot;command undoers&quot;</em>, that allow to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the related command.
-For instance the &quot;under&quot; of AddTodo is the related RemoveTodo (see next paragraph).</p>
+<p>A Command type is a Discriminated Union. Executing the command on a specific cluster means returning a proper list of events or an error.
+You can also specify <em>&quot;command undoers&quot;</em>, that allow you to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the related command.
+For instance, the &quot;under&quot; of AddTodo is the related RemoveTodo (see next paragraph).</p>
 <p>The abstract definitions of Command and Undoer  are:</p>
 <pre><code class="language-FSharp">
     type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
@@ -326,27 +327,23 @@ For instance the &quot;under&quot; of AddTodo is the related RemoveTodo (see nex
             member this.Undoer
 
 </code></pre>
-<p>Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed on the current state, give an Ok result, i.e. a valid state (and no error). 
-For that reason, before returning the events, I invoked the &quot;evolveUNforgivingErrors&quot; function to &quot;probe&quot; the sequence of two events to be eventually returned and see if the result is a valid state.
-The evolveUNforgivingErrors processes some events to a given state returning an error or a valid state.
-This does not mean that we will be able to process properly the events returned by the command, because the state may have changed in the meantime in case we don't handle concurrencly in a strict way.
-Therefore I assume that the events stored could be inconsistent. For that reason to process the stored events we will use an <em>evolve</em> function that is able to &quot;tolerate&quot; (and anyway log), inconsistent events.</p>
-<p>Thus the <em>evolve</em> will just skip events that, when processed give error, and can return a valid state anyway. 
-The way evolve can forgive inconsistent events is a form of optimistic locking: you may eventually add events to the storage that end up in an inconsistent state. They will just be ignored. That means: you can avoid single thread, or locks in command processing.</p>
-<p>Commands can use event caching if it is enabled as we have seen in the previous section.</p>
+<p>Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed on the current state, give an Ok result, i.e. a valid state (and no error). </p>
+<p>Even though the Command Handler using lock ensures immediate consistency, the <em>evolve</em> tolerates inconsistent events.
+Thus the <em>evolve</em> will just skip events that, when processed, return an error.</p>
 <h2 id="undoer"><a class="header" href="#undoer">Undoer</a></h2>
-<p>I already mentioned that a command case in a command type definition may have associated an <em>undoer</em> which is similar to a command itself, but it is aimed to eventually do the &quot;reverse&quot; of a command, which means compensating the effect of a command in case such command is part of a multiple stream transaction that fails. We really need the <em>undoer</em> only if the storage we use lacks the support for multiple streams transactions (which is the case of EventStoreDb, as far as I know).</p>
+<p>A command case may have associated an <em>undoer</em> which is similar to a command itself and is aimed to eventually do the &quot;reverse&quot; of that command case.
+We need the <em>undoer</em> only if the storage we use lacks support for multiple stream transactions (like EventStoreDb).</p>
 <pre><code class="language-FSharp">    type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
 </code></pre>
-<p>So, as a recap: when the repository uses storages like <em>in memory</em> or <em>Postgres</em>, you don't need to define any <em>undoer</em> for your commands, because those storages support multiple stream transactions.
-If you will use an EventStoreDb-like engine as storage, you may want to provide an <em>undoer</em> for each command case to be able to run multiple commands in a &quot;transactional&quot; way.</p>
-<p>I am going to show an example of an <em>undoer</em>. Let me remind the abstract definition of a command.</p>
+<p>When we use storages like <em>in memory</em> or <em>Postgres</em>, we don't need to define any <em>undoer</em> for our commands, because those storages support multiple stream transactions.
+Otherwise, we need to define an <em>undoer</em> if we know we are going to pass them to <em>runTwoCommands</em> on the command handler.</p>
+<p>The abstract definition of a command is:</p>
 <pre><code class="language-FSharp">    type Command&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
         abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
         abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
 </code></pre>
-<p>Given the current state, the &quot;command undoer&quot; returns a function that, applied to the  state, must return the actual <em>undoer</em>.</p>
-<p>So the undoers work in two shots: one to build a context for the eventual future undo, and one to actually... <em>do</em> the <em>undo!</em>. </p>
+<p>The &quot;command undoer&quot; returns a function that, applied to the state, must return the actual <em>undoer</em>.</p>
+<p>So the undoers work in two shots: one to build a context for the eventual future undo, and one to actually... <em>do</em> the <em>undo</em>. </p>
 <p><strong>Example of &quot;undoer&quot;</strong> :</p>
 <p>The <em>RemoveTag</em> command returns a list of TagRemoved events. We know that when those events are processed the result is the new cluster state without the tags.
 However, we may want to roll back the effect of those events by adding events that reverse their effect.</p>
@@ -398,10 +395,8 @@ However, we may want to roll back the effect of those events by adding events th
             return ()
         }
 </code></pre>
-<p>The service layer sends commands to the repository so that this one can run it producing and storing the related events.</p>
-<p>The following example shows a service layer that uses two clusters and an explicit lock (note that the lock object concept to handle transactions has been substituted by a mailboxprocessor (actor model). Still I'm not sure if the lock object approach deserved to be dismissed).
-As mentioned in the previous section its not a big deal avoiding any locking or mailboxprocessor (single thread) command processing: the worst that may happen is that the events stored are inconsistent and will be skipped by the &quot;evolve&quot; function.</p>
-<p>In the following case I assume that the cluster where using lock objects to handle transactions (which is not the case anymore).</p>
+<p>The service layer sends commands to the Command Handler so that this one can run it producing and storing the related events.</p>
+<p>Here is an example of using an explicit lock for consistency in an operation involving two clusters (we check that the tag is valid before adding the todo and inhibit write access to tags while the todo is being added).</p>
 <pre><code class="language-FSharp">    member this.addTodo todo =
         lock TagsCluster.LockObj &lt;| fun () -&gt;
             result {
@@ -420,7 +415,7 @@ As mentioned in the previous section its not a big deal avoiding any locking or 
             }
 </code></pre>
 <p>The todo can be added only if it contains valid tag references.</p>
-<p>Now I am showing how I decided to deal with the same issue of making the code safe  (transactional) by using the mailboxprocessor, part of FSharp core library, that allows processing messages in a single thread.</p>
+<p>I may just have the same effect by passing the entire block to a mailboxprocessor:</p>
 <pre><code class="language-FSharp">        member this.AddTodo todo =
             let f = fun () -&gt;
                 ResultCE.result {
@@ -446,189 +441,33 @@ As mentioned in the previous section its not a big deal avoiding any locking or 
             }
             |&gt; Async.RunSynchronously
 </code></pre>
-<p>The entire expression is wrapped in an async block and the processor.PostAndReply function is used to send the function f to the processor and wait for the result (again: the processor is a single thread message processor that may not be required anymore).</p>
-<p>Basically this approach ensures single-thread processing but may slow down the transaction.</p>
-<p>Another example is the following, about sending commands to more clusters.
-This code removes the tag with any reference to it. It builds two commands and makes the repository process them at the same time.
+<h2 id="running-two-commands-to-different-clusters"><a class="header" href="#running-two-commands-to-different-clusters">Running two commands to different clusters</a></h2>
+<p>This code removes the tag with any reference to it. It builds two commands and makes the repository process them at the same time.
 This code removes a tag and any reference to it.</p>
 <pre><code class="language-FSharp">    member this.removeTag id =
         ResultCE.result {
             let removeTag = TagCommand.RemoveTag id
             let removeTagRef = TodoCommand.RemoveTagRef id
-            let! _ = runTwoCommands&lt;TagsCluster, TodosCluster, TagEvent, TodoEvent&gt; storage removeTag removeTagRef
-            return ()
+            return! runTwoCommands&lt;TagsCluster, TodosCluster, TagEvent, TodoEvent&gt; storage removeTag removeTagRef
         }
 </code></pre>
-<p>About to the example involving the &quot;under&quot; of a command: the runTwoCommands function is executed in a transactional context if the storage supports multiple streams transactions (i.e. Postgres or in memory).
-In the case the storage does not support multiple streams transactions (i.e. Eventstoredb) the runTwoCommands function will execute the two commands in a sequence and use the undoers (if provided) to rollback the effect of the first command in case the second command fails.</p>
+<p>The <em>runTwoCommands</em> uses the undoer of the storage requires it.</p>
 <p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/App.fs">App.fs</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="repository"><a class="header" href="#repository">Repository</a></h1>
-<p>The repository has the responsibility of:</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="command-handler"><a class="header" href="#command-handler">Command Handler</a></h1>
+<p>The Command Handler has the responsibility of:</p>
 <ul>
 <li>getting the state</li>
 <li>trying to run commands passed, and eventually storing the related events.</li>
 <li>making periodic snapshots, according to the SnapshotsInterval.</li>
 </ul>
-<p>Here is an example of the private member that retrieves the latest snapshot:</p>
-<pre><code class="language-FSharp">    let inline private getLastSnapshot&lt;'A 
-        when 'A: (static member Zero: 'A) 
-        and 'A: (static member StorageName: string)
-        and 'A: (static member Version: string)&gt;
-        (storage: IStorage) = 
-
-        ResultCE.result {
-            let! result =
-                match storage.TryGetLastSnapshot 'A.Version 'A.StorageName  with
-                | Some (snapId, eventId, json) -&gt;
-                    let state = SnapCache&lt;'A&gt;.Instance.Memoize (fun () -&gt; json |&gt; deserialize&lt;'A&gt;) snapId
-                    match state with
-                    | Error e -&gt; Error e
-                    | _ -&gt; (eventId, state |&gt; Result.get) |&gt; Ok
-                | None -&gt; (0, 'A.Zero) |&gt; Ok
-            return result
-        }
-</code></pre>
-<p>This function uses the storage to retrieve a triple of the snapshot-Id, the related eventId and the snapshot itself, serialized as json.
-Note that the snapshot may be cached in memory so that the deserialization is done only once.</p>
-<p>To get the current state of a cluster we need to get the last snapshot and the events that are after the snapshot.</p>
-<p>Here is an older version of how to get the state:</p>
-<pre><code class="language-Fsharp">    let inline getState&lt;'A, 'E
-        when 'A: (static member Zero: 'A)
-        and 'A: (static member StorageName: string)
-        and 'A: (static member Version: string)
-        and 'A: (static member LockObj: obj)
-        and 'E :&gt; Event&lt;'A&gt;&gt;(storage: IStorage) = 
-
-        let snapIdStateAndEvents()  =
-            lock 'A.LockObj ( fun _ -&gt;
-                ResultCE.result {
-                    let! (id, state) = getLastSnapshot&lt;'A&gt; storage
-                    let events = storage.GetEventsAfterId 'A.Version id 'A.StorageName
-                    let result =
-                        (id, state, events)
-                    return result
-                }
-            )
-
-        ResultCE.result {
-            let! (lastSnapshotId, state, events) = snapIdStateAndEvents()
-            let lastEventId =
-                match events.Length with
-                | x when x &gt; 0 -&gt; events |&gt; List.last |&gt; fst
-                | _ -&gt; lastSnapshotId 
-            let! events' =
-                events |&gt;&gt; snd |&gt; catchErrors deserialize&lt;'E&gt;
-            let! result =
-                events' |&gt; evolve&lt;'A, 'E&gt; state
-
-            return (lastEventId, result)
-        }
-</code></pre>
-<p>Now I show the current implementation that enables cluster-state caching:</p>
-<pre><code class="language-FSharp">    let inline getState&lt;'A, 'E
-        when 'A: (static member Zero: 'A)
-        and 'A: (static member StorageName: string)
-        and 'A: (static member Version: string)
-        and 'E :&gt; Event&lt;'A&gt;&gt;(storage: IStorage) = 
-
-        let snapIdStateAndEvents()  =
-            async {
-                return
-                    ResultCE.result {
-                        let! (id, state) = getLastSnapshot&lt;'A&gt; storage
-                        let events = storage.GetEventsAfterId 'A.Version id 'A.StorageName
-                        let result =
-                            (id, state, events)
-                        return result
-                    }
-            }
-            |&gt; Async.RunSynchronously
-
-        let eventuallyFromCache = 
-            fun () -&gt;
-                ResultCE.result {
-                    let! (lastSnapshotId, state, events) = snapIdStateAndEvents()
-                    let lastEventId =
-                        match events.Length with
-                        | x when x &gt; 0 -&gt; events |&gt; List.last |&gt; fst
-                        | _ -&gt; lastSnapshotId 
-                    let! events' =
-                        events |&gt;&gt; snd |&gt; catchErrors deserialize&lt;'E&gt;
-                    let! result =
-                        events' |&gt; evolve&lt;'A, 'E&gt; state
-                    return (lastEventId, result)
-                }
-        let lastEventId = 
-            async {
-                return storage.TryGetLastEventId 'A.Version 'A.StorageName |&gt; Option.defaultValue 0
-            } 
-            |&gt; Async.RunSynchronously
-        StateCache&lt;'A&gt;.Instance.Memoize (fun () -&gt; eventuallyFromCache()) (lastEventId, 'A.StorageName)
-</code></pre>
-<p>In the above code, the state is a function of eventId, and so we can use this eventId as the key of a cache that stores the state of the cluster.</p>
-<p>Note that here the evolve function is used, which is part of the core library.</p>
-<p>There are actually two similar evolve implementations:</p>
-<p>The basic implementation of the evolve is the one that cannot forgive any inconsistency in the  events passed as parameters with the current state:</p>
-<pre><code class="language-Fsharp">    let inline evolveUNforgivingErrors&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; (h: 'A) (events: List&lt;'E&gt;) =
-        events
-        |&gt; List.fold
-            (fun (acc: Result&lt;'A, string&gt;) (e: 'E) -&gt;
-                match acc with
-                    | Error err -&gt; Error err 
-                    | Ok h -&gt; h |&gt; e.Process
-            ) (h |&gt; Ok)
-</code></pre>
-<p>Here is an implementation of the evolve that skips eventual inconsistent events:</p>
-<pre><code class="language-Fsharp">    let inline evolve&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; (h: 'A) (events: List&lt;'E&gt;): Result&lt;'A, string&gt; =
-        let rec evolveSkippingErrors (acc: Result&lt;'A, string&gt;) (events: List&lt;'E&gt;) (guard: 'A) =
-            match acc, events with
-            | Error err, _::es -&gt; 
-                // you may want to print or log this
-                printf &quot;warning: %A\n&quot; err
-                evolveSkippingErrors (guard |&gt; Ok) es guard
-            | Error err, [] -&gt; 
-                // you may want to print or log this
-                printf &quot;warning: %A\n&quot; err
-                guard |&gt; Ok
-            | Ok state, e::es -&gt;
-                let newGuard = state |&gt; e.Process
-                match newGuard with
-                | Error err -&gt; 
-                    // use your favorite logging library here
-                    printf &quot;warning: %A\n&quot; err
-                    evolveSkippingErrors (guard |&gt; Ok) es guard
-                | Ok h' -&gt;
-                    evolveSkippingErrors (h' |&gt; Ok) es h'
-            | Ok h, [] -&gt; h |&gt; Ok
-
-        evolveSkippingErrors (h |&gt; Ok) events h
-</code></pre>
-<p>Code in <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Repository.fs">Repository.fs</a> and
+<p>There are two different command handler implementations:</p>
+<p>Code in <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/CommandHandler.fs">CommandHandler.fs</a>
 <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Core.fs">Core.fs</a></p>
 <p>There is also an experimental repository based on a publish/subscribe storage model (Eventstoredb).
 See <em>lightrepository</em></p>
-<p><a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/LightRepository.fs">LightRepository.fs</a> </p>
+<p><a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/LightCommandHandler.fs">LightCommandHandler.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="storage"><a class="header" href="#storage">Storage</a></h1>
 <p>A storage stores and retrieves events and snapshots related to each single cluster.</p>
-<p>In a strict way storage ensures transactionality particularly in special cases like when adding events related to multiple clusters.</p>
-<p>In a general sense, there is the possibility of supporting storages that lack transactionality between multiple streams,  and that is the case of the <em>EventStoreBridge</em> (or, in the future, Kafa etc..)</p>
-<p>Here is the abstract definition of members required for storage:</p>
-<pre><code class="language-FSharp">    type IStorage =
-        abstract member Reset: Version -&gt; Name -&gt; unit
-        abstract member TryGetLastSnapshot: Version -&gt; Name -&gt; Option&lt;SnapId * EventId * Json&gt;
-        abstract member TryGetLastEventId: Version -&gt; Name -&gt; Option&lt;EventId&gt;
-        // toto: the following two can be unified
-        abstract member TryGetLastSnapshotEventId: Version -&gt; Name -&gt; Option&lt;EventId&gt;
-        abstract member TryGetLastSnapshotId: Version -&gt; Name -&gt; Option&lt;EventId * SnapshotId&gt;
-        abstract member TryGetSnapshotById: Version -&gt; Name -&gt; int -&gt;Option&lt;EventId * Json&gt;
-        abstract member TryGetEvent: Version -&gt; int -&gt; Name -&gt; Option&lt;StorageEventJson&gt;
-        abstract member SetSnapshot: Version -&gt; int * Json -&gt; Name -&gt; Result&lt;unit, string&gt;
-        abstract member AddEvents: Version -&gt; Name -&gt; List&lt;Json&gt; -&gt; Result&lt;List&lt;int&gt;, string&gt;
-        abstract member MultiAddEvents:  List&lt;List&lt;Json&gt; * Version * Name&gt;  -&gt; Result&lt;List&lt;List&lt;int&gt;&gt;, string&gt;
-        abstract member GetEventsAfterId: Version -&gt; int -&gt; Name -&gt; Result&lt; List&lt; EventId * Json &gt;, string &gt;
-        abstract member GetEventsInATimeInterval: Version -&gt; Name -&gt; DateTime -&gt; DateTime -&gt; List&lt;EventId * Json &gt;
-
-</code></pre>
 <p>I created also a &quot;lightweight&quot; version of the storage interface assuming that there are storage types where you will not need all the full storage interface.</p>
 <p>Reset must be used only for development and testing, and cannot be used in production. See Conf.fs.</p>
 <p>An example of a storage implementation in Postgres: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/DbStorage.fs">DbStorage.fs</a></p>
@@ -637,10 +476,10 @@ See <em>lightrepository</em></p>
 It is still experimental.
 <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/EventStoreStorage.fs">EventStoreBridge.fs</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="refactoring-strategy"><a class="header" href="#refactoring-strategy">Refactoring strategy</a></h1>
-<p>By cluster refactoring I mean when we just move models (collection of entities) among clusters.</p>
+<p>By cluster refactoring, I mean when we just move models (collections of entities) among clusters.</p>
 <p>Here I am showing a strategy for refactoring in terms of:</p>
 <ul>
-<li>moving the model's ownership between cluster, </li>
+<li>moving the model's ownership between clusters, </li>
 <li>introducing new clusters </li>
 <li>upgrading old clusters.</li>
 <li>dropping clusters.</li>
@@ -674,7 +513,7 @@ Consider the extreme when we have everything in a single cluster. It would mean 
 <p>A migration function is needed to extract data from the current version and store it in the upgraded version.</p>
 <p>Code here: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample.Test/MultiVersionsTests.fs">MultiVersionsTests.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
-<p>As I mentioned in the previous chapter we may have different versions of the same application based on different clustes.</p>
+<p>As I mentioned in the previous chapter we may have different versions of the same application based on different clusters.</p>
 <p>We may want to test all of them and also we may want to test the migration function from one version to another in those tests.
 A structure of a parametric test that considers various possible combinations of application versions and migration functions is the following:</p>
 <pre><code class="language-FSharp">

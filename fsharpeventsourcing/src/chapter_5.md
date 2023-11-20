@@ -16,12 +16,9 @@ Here is one of the simplest examples of an entry for a service involving a singl
         }
 ```
 
-The service layer sends commands to the repository so that this one can run it producing and storing the related events.
+The service layer sends commands to the Command Handler so that this one can run it producing and storing the related events.
 
-The following example shows a service layer that uses two clusters and an explicit lock (note that the lock object concept to handle transactions has been substituted by a mailboxprocessor (actor model). Still I'm not sure if the lock object approach deserved to be dismissed).
-As mentioned in the previous section its not a big deal avoiding any locking or mailboxprocessor (single thread) command processing: the worst that may happen is that the events stored are inconsistent and will be skipped by the "evolve" function.
-
-In the following case I assume that the cluster where using lock objects to handle transactions (which is not the case anymore).
+Here is an example of using an explicit lock for consistency in an operation involving two clusters (we check that the tag is valid before adding the todo and inhibit write access to tags while the todo is being added).
 
 ```FSharp
     member this.addTodo todo =
@@ -44,7 +41,7 @@ In the following case I assume that the cluster where using lock objects to hand
 
 The todo can be added only if it contains valid tag references.
 
-Now I am showing how I decided to deal with the same issue of making the code safe  (transactional) by using the mailboxprocessor, part of FSharp core library, that allows processing messages in a single thread.
+I may just have the same effect by passing the entire block to a mailboxprocessor:
 
 ```FSharp
         member this.AddTodo todo =
@@ -73,11 +70,8 @@ Now I am showing how I decided to deal with the same issue of making the code sa
             |> Async.RunSynchronously
 ```
 
-The entire expression is wrapped in an async block and the processor.PostAndReply function is used to send the function f to the processor and wait for the result (again: the processor is a single thread message processor that may not be required anymore).
+## Running two commands to different clusters
 
-Basically this approach ensures single-thread processing but may slow down the transaction.
-
-Another example is the following, about sending commands to more clusters.
 This code removes the tag with any reference to it. It builds two commands and makes the repository process them at the same time.
 This code removes a tag and any reference to it.
 
@@ -86,13 +80,11 @@ This code removes a tag and any reference to it.
         ResultCE.result {
             let removeTag = TagCommand.RemoveTag id
             let removeTagRef = TodoCommand.RemoveTagRef id
-            let! _ = runTwoCommands<TagsCluster, TodosCluster, TagEvent, TodoEvent> storage removeTag removeTagRef
-            return ()
+            return! runTwoCommands<TagsCluster, TodosCluster, TagEvent, TodoEvent> storage removeTag removeTagRef
         }
 ```
 
-About to the example involving the "under" of a command: the runTwoCommands function is executed in a transactional context if the storage supports multiple streams transactions (i.e. Postgres or in memory).
-In the case the storage does not support multiple streams transactions (i.e. Eventstoredb) the runTwoCommands function will execute the two commands in a sequence and use the undoers (if provided) to rollback the effect of the first command in case the second command fails.
+The _runTwoCommands_ uses the undoer of the storage requires it.
 
 Source: [App.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/App.fs)
 

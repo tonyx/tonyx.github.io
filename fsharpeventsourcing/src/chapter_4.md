@@ -1,9 +1,8 @@
 # Commands
 
-We must define command types.
-A Command type is concretely represented by a Discriminated Union. Executing the command on a specific cluster means returning a proper list of events that can be applied (processed)  or returning an error.
-I can also specify _"command undoers"_, that allow to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the related command.
-For instance the "under" of AddTodo is the related RemoveTodo (see next paragraph).
+A Command type is a Discriminated Union. Executing the command on a specific cluster means returning a proper list of events or an error.
+You can also specify _"command undoers"_, that allow you to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the related command.
+For instance, the "under" of AddTodo is the related RemoveTodo (see next paragraph).
 
 The abstract definitions of Command and Undoer  are:
 
@@ -61,38 +60,32 @@ It is possible, although uncommon, to have, for a command, cases that can return
 
 ```
 Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed on the current state, give an Ok result, i.e. a valid state (and no error). 
-For that reason, before returning the events, I invoked the "evolveUNforgivingErrors" function to "probe" the sequence of two events to be eventually returned and see if the result is a valid state.
-The evolveUNforgivingErrors processes some events to a given state returning an error or a valid state.
-This does not mean that we will be able to process properly the events returned by the command, because the state may have changed in the meantime in case we don't handle concurrencly in a strict way.
-Therefore I assume that the events stored could be inconsistent. For that reason to process the stored events we will use an _evolve_ function that is able to "tolerate" (and anyway log), inconsistent events.
 
-Thus the _evolve_ will just skip events that, when processed give error, and can return a valid state anyway. 
-The way evolve can forgive inconsistent events is a form of optimistic locking: you may eventually add events to the storage that end up in an inconsistent state. They will just be ignored. That means: you can avoid single thread, or locks in command processing.
-
-Commands can use event caching if it is enabled as we have seen in the previous section.
+Even though the Command Handler using lock ensures immediate consistency, the _evolve_ tolerates inconsistent events.
+Thus the _evolve_ will just skip events that, when processed, return an error.
 
 ## Undoer
 
-I already mentioned that a command case in a command type definition may have associated an _undoer_ which is similar to a command itself, but it is aimed to eventually do the "reverse" of a command, which means compensating the effect of a command in case such command is part of a multiple stream transaction that fails. We really need the _undoer_ only if the storage we use lacks the support for multiple streams transactions (which is the case of EventStoreDb, as far as I know).
+A command case may have associated an _undoer_ which is similar to a command itself and is aimed to eventually do the "reverse" of that command case.
+We need the _undoer_ only if the storage we use lacks support for multiple stream transactions (like EventStoreDb).
 
 ```FSharp
     type Undoer<'A, 'E when 'E :> Event<'A>> = 'A -> Result<List<'E>, string>
 ```
 
-So, as a recap: when the repository uses storages like _in memory_ or _Postgres_, you don't need to define any _undoer_ for your commands, because those storages support multiple stream transactions.
-If you will use an EventStoreDb-like engine as storage, you may want to provide an _undoer_ for each command case to be able to run multiple commands in a "transactional" way.
+When we use storages like _in memory_ or _Postgres_, we don't need to define any _undoer_ for our commands, because those storages support multiple stream transactions.
+Otherwise, we need to define an _undoer_ if we know we are going to pass them to _runTwoCommands_ on the command handler.
 
-I am going to show an example of an _undoer_. Let me remind the abstract definition of a command.
-
+The abstract definition of a command is:
 ```FSharp
     type Command<'A, 'E when 'E :> Event<'A>> =
         abstract member Execute: 'A -> Result<List<'E>, string>
         abstract member Undoer: Option<'A -> Result<Undoer<'A, 'E>, string>>
 ```
 
-Given the current state, the "command undoer" returns a function that, applied to the  state, must return the actual _undoer_.
+The "command undoer" returns a function that, applied to the state, must return the actual _undoer_.
 
-So the undoers work in two shots: one to build a context for the eventual future undo, and one to actually... _do_ the _undo!_. 
+So the undoers work in two shots: one to build a context for the eventual future undo, and one to actually... _do_ the _undo_. 
 
 __Example of "undoer"__ :
 

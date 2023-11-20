@@ -144,152 +144,19 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="repository"><a class="header" href="#repository">Repository</a></h1>
-<p>The repository has the responsibility of:</p>
+                        <h1 id="command-handler"><a class="header" href="#command-handler">Command Handler</a></h1>
+<p>The Command Handler has the responsibility of:</p>
 <ul>
 <li>getting the state</li>
 <li>trying to run commands passed, and eventually storing the related events.</li>
 <li>making periodic snapshots, according to the SnapshotsInterval.</li>
 </ul>
-<p>Here is an example of the private member that retrieves the latest snapshot:</p>
-<pre><code class="language-FSharp">    let inline private getLastSnapshot&lt;'A 
-        when 'A: (static member Zero: 'A) 
-        and 'A: (static member StorageName: string)
-        and 'A: (static member Version: string)&gt;
-        (storage: IStorage) = 
-
-        ResultCE.result {
-            let! result =
-                match storage.TryGetLastSnapshot 'A.Version 'A.StorageName  with
-                | Some (snapId, eventId, json) -&gt;
-                    let state = SnapCache&lt;'A&gt;.Instance.Memoize (fun () -&gt; json |&gt; deserialize&lt;'A&gt;) snapId
-                    match state with
-                    | Error e -&gt; Error e
-                    | _ -&gt; (eventId, state |&gt; Result.get) |&gt; Ok
-                | None -&gt; (0, 'A.Zero) |&gt; Ok
-            return result
-        }
-</code></pre>
-<p>This function uses the storage to retrieve a triple of the snapshot-Id, the related eventId and the snapshot itself, serialized as json.
-Note that the snapshot may be cached in memory so that the deserialization is done only once.</p>
-<p>To get the current state of a cluster we need to get the last snapshot and the events that are after the snapshot.</p>
-<p>Here is an older version of how to get the state:</p>
-<pre><code class="language-Fsharp">    let inline getState&lt;'A, 'E
-        when 'A: (static member Zero: 'A)
-        and 'A: (static member StorageName: string)
-        and 'A: (static member Version: string)
-        and 'A: (static member LockObj: obj)
-        and 'E :&gt; Event&lt;'A&gt;&gt;(storage: IStorage) = 
-
-        let snapIdStateAndEvents()  =
-            lock 'A.LockObj ( fun _ -&gt;
-                ResultCE.result {
-                    let! (id, state) = getLastSnapshot&lt;'A&gt; storage
-                    let events = storage.GetEventsAfterId 'A.Version id 'A.StorageName
-                    let result =
-                        (id, state, events)
-                    return result
-                }
-            )
-
-        ResultCE.result {
-            let! (lastSnapshotId, state, events) = snapIdStateAndEvents()
-            let lastEventId =
-                match events.Length with
-                | x when x &gt; 0 -&gt; events |&gt; List.last |&gt; fst
-                | _ -&gt; lastSnapshotId 
-            let! events' =
-                events |&gt;&gt; snd |&gt; catchErrors deserialize&lt;'E&gt;
-            let! result =
-                events' |&gt; evolve&lt;'A, 'E&gt; state
-
-            return (lastEventId, result)
-        }
-</code></pre>
-<p>Now I show the current implementation that enables cluster-state caching:</p>
-<pre><code class="language-FSharp">    let inline getState&lt;'A, 'E
-        when 'A: (static member Zero: 'A)
-        and 'A: (static member StorageName: string)
-        and 'A: (static member Version: string)
-        and 'E :&gt; Event&lt;'A&gt;&gt;(storage: IStorage) = 
-
-        let snapIdStateAndEvents()  =
-            async {
-                return
-                    ResultCE.result {
-                        let! (id, state) = getLastSnapshot&lt;'A&gt; storage
-                        let events = storage.GetEventsAfterId 'A.Version id 'A.StorageName
-                        let result =
-                            (id, state, events)
-                        return result
-                    }
-            }
-            |&gt; Async.RunSynchronously
-
-        let eventuallyFromCache = 
-            fun () -&gt;
-                ResultCE.result {
-                    let! (lastSnapshotId, state, events) = snapIdStateAndEvents()
-                    let lastEventId =
-                        match events.Length with
-                        | x when x &gt; 0 -&gt; events |&gt; List.last |&gt; fst
-                        | _ -&gt; lastSnapshotId 
-                    let! events' =
-                        events |&gt;&gt; snd |&gt; catchErrors deserialize&lt;'E&gt;
-                    let! result =
-                        events' |&gt; evolve&lt;'A, 'E&gt; state
-                    return (lastEventId, result)
-                }
-        let lastEventId = 
-            async {
-                return storage.TryGetLastEventId 'A.Version 'A.StorageName |&gt; Option.defaultValue 0
-            } 
-            |&gt; Async.RunSynchronously
-        StateCache&lt;'A&gt;.Instance.Memoize (fun () -&gt; eventuallyFromCache()) (lastEventId, 'A.StorageName)
-</code></pre>
-<p>In the above code, the state is a function of eventId, and so we can use this eventId as the key of a cache that stores the state of the cluster.</p>
-<p>Note that here the evolve function is used, which is part of the core library.</p>
-<p>There are actually two similar evolve implementations:</p>
-<p>The basic implementation of the evolve is the one that cannot forgive any inconsistency in the  events passed as parameters with the current state:</p>
-<pre><code class="language-Fsharp">    let inline evolveUNforgivingErrors&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; (h: 'A) (events: List&lt;'E&gt;) =
-        events
-        |&gt; List.fold
-            (fun (acc: Result&lt;'A, string&gt;) (e: 'E) -&gt;
-                match acc with
-                    | Error err -&gt; Error err 
-                    | Ok h -&gt; h |&gt; e.Process
-            ) (h |&gt; Ok)
-</code></pre>
-<p>Here is an implementation of the evolve that skips eventual inconsistent events:</p>
-<pre><code class="language-Fsharp">    let inline evolve&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; (h: 'A) (events: List&lt;'E&gt;): Result&lt;'A, string&gt; =
-        let rec evolveSkippingErrors (acc: Result&lt;'A, string&gt;) (events: List&lt;'E&gt;) (guard: 'A) =
-            match acc, events with
-            | Error err, _::es -&gt; 
-                // you may want to print or log this
-                printf &quot;warning: %A\n&quot; err
-                evolveSkippingErrors (guard |&gt; Ok) es guard
-            | Error err, [] -&gt; 
-                // you may want to print or log this
-                printf &quot;warning: %A\n&quot; err
-                guard |&gt; Ok
-            | Ok state, e::es -&gt;
-                let newGuard = state |&gt; e.Process
-                match newGuard with
-                | Error err -&gt; 
-                    // use your favorite logging library here
-                    printf &quot;warning: %A\n&quot; err
-                    evolveSkippingErrors (guard |&gt; Ok) es guard
-                | Ok h' -&gt;
-                    evolveSkippingErrors (h' |&gt; Ok) es h'
-            | Ok h, [] -&gt; h |&gt; Ok
-
-        evolveSkippingErrors (h |&gt; Ok) events h
-</code></pre>
-<p>Code in <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Repository.fs">Repository.fs</a> and
+<p>There are two different command handler implementations:</p>
+<p>Code in <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/CommandHandler.fs">CommandHandler.fs</a>
 <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Core.fs">Core.fs</a></p>
 <p>There is also an experimental repository based on a publish/subscribe storage model (Eventstoredb).
 See <em>lightrepository</em></p>
-<p><a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/LightRepository.fs">LightRepository.fs</a> </p>
+<p><a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/LightCommandHandler.fs">LightCommandHandler.fs</a></p>
 
                     </main>
 
