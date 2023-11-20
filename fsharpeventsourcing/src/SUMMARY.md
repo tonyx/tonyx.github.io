@@ -10,3 +10,5 @@
 - [Storage](./chapter_7.md)
 - [Refactoring](./chapter_8.md)
 - [Testing](./chapter_9.md)
+- [Apache Kafka](./chapter_10.md)
+
