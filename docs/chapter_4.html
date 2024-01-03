@@ -147,8 +147,7 @@
                         <h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
 <p>A Command type is a Discriminated Union. Executing the command on a specific cluster means returning a proper list of events or an error.
 You can also specify <em>&quot;command undoers&quot;</em>, that allow you to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the related command.
-For instance, the &quot;under&quot; of AddTodo is the related RemoveTodo (see next paragraph).</p>
-<p>The abstract definitions of Command and Undoer  are:</p>
+For example, the &quot;under&quot; of AddTodo is the related RemoveTodo (see next paragraph).</p>
 <pre><code class="language-FSharp">
     type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
 
@@ -162,8 +161,8 @@ For instance, the &quot;under&quot; of AddTodo is the related RemoveTodo (see ne
         | AddTodo of Todo
         | RemoveTodo of Guid
 
-        interface Command&lt;TodosCluster, TodoEvent&gt; with
-            member this.Execute (x: TodosCluster) =
+        interface Command&lt;TodosContext, TodoEvent&gt; with
+            member this.Execute (x: TodosContext) =
                 match this with
                 | AddTodo t -&gt; 
                     match x.AddTodo t with
@@ -176,12 +175,12 @@ For instance, the &quot;under&quot; of AddTodo is the related RemoveTodo (see ne
                         | Error x -&gt; x |&gt; Error
             member this.Undoer = None
 </code></pre>
-<p>It is possible, although uncommon, to have, for a command, cases that can return multiple events as follows:</p>
+<p>A command may return more than one event:</p>
 <pre><code class="language-FSharp">    type TodoCommand =
         [...]
         | Add2Todos of Todo * Todo
         interface Command&lt;TodosCluster, TodoEvent&gt; with
-            member this.Execute (x: TodosClusten) =
+            member this.Execute (x: TodosContext) =
             [...]
             match this with
             | Add2Todos (t1, t2) -&gt; 
@@ -195,12 +194,13 @@ For instance, the &quot;under&quot; of AddTodo is the related RemoveTodo (see ne
             member this.Undoer
 
 </code></pre>
-<p>Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed on the current state, give an Ok result, i.e. a valid state (and no error). </p>
-<p>Even though the Command Handler using lock ensures immediate consistency, the <em>evolve</em> tolerates inconsistent events.
+<p>Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed on the current state, return an Ok result, i.e. a valid state (and no error). </p>
+<p>The <em>evolve</em> tolerates inconsistent events.
 Thus the <em>evolve</em> will just skip events that, when processed, return an error.</p>
 <h2 id="undoer"><a class="header" href="#undoer">Undoer</a></h2>
 <p>A command case may have associated an <em>undoer</em> which is similar to a command itself and is aimed to eventually do the &quot;reverse&quot; of that command case.
-We need the <em>undoer</em> only if the storage we use lacks support for multiple stream transactions (like EventStoreDb).</p>
+We need the <em>undoer</em> only if the storage we use lacks support for multiple stream transactions (like EventStoreDb).
+(Note: I may not support EventStoreDb in the future. I probably will just stick to the Postgres Db as event-store and Apache Kafka as event-broker.)</p>
 <pre><code class="language-FSharp">    type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
 </code></pre>
 <p>When we use storages like <em>in memory</em> or <em>Postgres</em>, we don't need to define any <em>undoer</em> for our commands, because those storages support multiple stream transactions.
@@ -222,7 +222,7 @@ However, we may want to roll back the effect of those events by adding events th
         | RemoveTag g -&gt; 
             // block to be executed before the actual command removing tag 
             // is executed. It will return another function with the context needed (the tag itself)
-            (fun (x: TagsCluster) -&gt;
+            (fun (x: TagsContext) -&gt;
                 result {
                     let! tag = x.GetTag g
                     let result =
@@ -231,7 +231,7 @@ However, we may want to roll back the effect of those events by adding events th
                         // It will return the list of events to be applied to the cluster state to compensate the effect of the command. 
                         // Note that the tag is the context needed to readd the tag to the  state.
 
-                        fun (x': TagsCluster) -&gt;
+                        fun (x': TagsContext) -&gt;
                             x'.AddTag tag 
                             |&gt; Result.map (fun _ -&gt; [TagAdded tag])
                     return result
@@ -241,8 +241,8 @@ However, we may want to roll back the effect of those events by adding events th
         | AddTag t -&gt;
             // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. 
             // The context is the tag itself (particularly its id), that can't be lost during the transaction.
-            (fun (_: TagsCluster) -&gt;
-                fun (x': TagsCluster) -&gt;
+            (fun (_: TagsContext) -&gt;
+                fun (x': TagsContext) -&gt;
                     x'.RemoveTag t.Id 
                     |&gt; Result.map (fun _ -&gt; [TagAdded t])
                 |&gt; Ok
@@ -250,7 +250,7 @@ However, we may want to roll back the effect of those events by adding events th
             |&gt; Some
 
 </code></pre>
-<p>Source code: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/clusters/Todos/Commands.fs">Commands.fs</a>)</p>
+<p><a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Tags/Commands.fs">Commands.fs</a></p>
 
                     </main>
 

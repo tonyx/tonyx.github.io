@@ -152,11 +152,13 @@
 <li>making periodic snapshots, according to the SnapshotsInterval.</li>
 </ul>
 <p>There are two different command handler implementations:</p>
-<p>Code in <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/CommandHandler.fs">CommandHandler.fs</a>
-<a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Core.fs">Core.fs</a></p>
+<p><a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/CommandHandler.fs">CommandHandler.fs</a></p>
 <p>There is also an experimental repository based on a publish/subscribe storage model (Eventstoredb).
 See <em>lightrepository</em></p>
 <p><a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/LightCommandHandler.fs">LightCommandHandler.fs</a></p>
+<p>Note: from version 1.4.7 the commandHandler can use a Kafka broker to retrieve the current state.
+That means that the commandHandler can be used in a distributed environment, where the state is stored in a Kafka topic.
+Moreover, it can anyway rely on the EventStoreDb to rebuild the current state in case of failure of the Kafka broker (for example when events are out of sync).</p>
 
                     </main>
 

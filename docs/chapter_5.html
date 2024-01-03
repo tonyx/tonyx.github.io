@@ -145,19 +145,20 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
-<p>An application service layer provides services that use Repository and Storage to get the state and/or send commands to one or more clusters (eventually in an atomic/transactional way with potential performance issues) and store the related events.</p>
-<p>Here is one of the simplest examples of an entry for a service involving a single cluster, by building and running an AddTag command.</p>
-<pre><code class="language-FSharp">    member this.addTag tag =
-        result {
-            let! _ =
-                tag
-                |&gt; AddTag
-                |&gt; (runCommand&lt;TagsCluster, TagEvent&gt; storage)
-            return ()
-        }
+<p>An application service layer implements multiple context logic.
+Here is one of the simplest examples of an entry for a service involving a single context, by building and running an AddTag command.</p>
+<pre><code class="language-FSharp">        member this.AddTag tag =
+            result {
+                let! result =
+                    tag
+                    |&gt; AddTag
+                    |&gt; runCommand&lt;TagsContext, TagEvent&gt; storage eventBroker tagsStateViewer
+                return result 
+            }
 </code></pre>
-<p>The service layer sends commands to the Command Handler so that this one can run it producing and storing the related events.</p>
-<p>Here is an example of using an explicit lock for consistency in an operation involving two clusters (we check that the tag is valid before adding the todo and inhibit write access to tags while the todo is being added).</p>
+<p>As in the previous example, the service layer sends commands to the Command Handler so that this one can run it producing and storing the related events, returning the EventStore Ids of the stored events and the KafkaDeliveryResult (if Kafka broker is enabled).</p>
+<p>We may adopt strong and immediate consistency by enforcing the use of a pessimistic lock on the command handler.
+An example of explicit use of lock:</p>
 <pre><code class="language-FSharp">    member this.addTodo todo =
         lock TagsCluster.LockObj &lt;| fun () -&gt;
             result {
@@ -176,32 +177,6 @@
             }
 </code></pre>
 <p>The todo can be added only if it contains valid tag references.</p>
-<p>I may just have the same effect by passing the entire block to a mailboxprocessor:</p>
-<pre><code class="language-FSharp">        member this.AddTodo todo =
-            let f = fun () -&gt;
-                ResultCE.result {
-                    let! (_, tagState) = storage |&gt; getState&lt;TagsCluster, TagEvent&gt; 
-                    let tagIds = tagState.GetTags() |&gt;&gt; (fun x -&gt; x.Id)
-
-                    let! tagIdIsValid =    
-                        (todo.TagIds.IsEmpty ||
-                        todo.TagIds |&gt; List.forall (fun x -&gt; (tagIds |&gt; List.contains x)))
-                        |&gt; boolToResult &quot;A tag reference contained in the todo is related to a tag that does not exist&quot;
-
-                    let! _ =
-                        todo
-                        |&gt; TodoCommand.AddTodo
-                        |&gt; runCommand&lt;TodosCluster, TodoEvent&gt; storage
-                    let _ = 
-                        storage
-                        |&gt; mkSnapshotIfInterval&lt;TodosCluster, TodoEvent&gt;
-                return ()
-            }
-            async {
-                return processor.PostAndReply (fun rc -&gt; f, rc)
-            }
-            |&gt; Async.RunSynchronously
-</code></pre>
 <h2 id="running-two-commands-to-different-clusters"><a class="header" href="#running-two-commands-to-different-clusters">Running two commands to different clusters</a></h2>
 <p>This code removes the tag with any reference to it. It builds two commands and makes the repository process them at the same time.
 This code removes a tag and any reference to it.</p>
@@ -212,7 +187,7 @@ This code removes a tag and any reference to it.</p>
             return! runTwoCommands&lt;TagsCluster, TodosCluster, TagEvent, TodoEvent&gt; storage removeTag removeTagRef
         }
 </code></pre>
-<p>The <em>runTwoCommands</em> uses the undoer of the storage requires it.</p>
+<p>The <em>runTwoCommands</em> uses the undoer if the current event store requires it (i.e. it lacks multiple stream transactions).</p>
 <p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/App.fs">App.fs</a></p>
 
                     </main>

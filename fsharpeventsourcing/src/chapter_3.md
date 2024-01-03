@@ -1,8 +1,8 @@
 # Events
 
-Events are discriminated unions (DU) with cases associated with members of the cluster doing _add_/_update_/_delete_/ entities.
+Events are discriminated unions (DU) with cases associated with members of the context that end up in _adding_/_updating_/_deleting_/ entities.
 
-When we process an event it returns a new state or an error, which fits the following definition of Process taken from the Core.fs file:
+When we process an event it returns a new state or an error: 
 
 ```FSharp
     type Event<'A> =
@@ -20,7 +20,7 @@ The _Process_ member of the event is implemented by calling the related clusters
         | TodoAdded of Todo
         | TodoRemoved of Guid
             interface Event<TodosCluster> with
-                member this.Process (x: TodosCluster ) =
+                member this.Process (x: TodosContext ) =
                     match this with
                     | TodoAdded (t: Todo) -> 
                         x.AddTodo t
@@ -29,5 +29,6 @@ The _Process_ member of the event is implemented by calling the related clusters
 
 ```
 
-Source code:  [Events.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Events.fs)
+Source code:  [Events.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Todos/Events.fs)
+
 

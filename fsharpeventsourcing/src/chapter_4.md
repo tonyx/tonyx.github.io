@@ -2,9 +2,8 @@
 
 A Command type is a Discriminated Union. Executing the command on a specific cluster means returning a proper list of events or an error.
 You can also specify _"command undoers"_, that allow you to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the related command.
-For instance, the "under" of AddTodo is the related RemoveTodo (see next paragraph).
+For example, the "under" of AddTodo is the related RemoveTodo (see next paragraph).
 
-The abstract definitions of Command and Undoer  are:
 
 ```FSharp
 
@@ -23,8 +22,8 @@ Example:
         | AddTodo of Todo
         | RemoveTodo of Guid
 
-        interface Command<TodosCluster, TodoEvent> with
-            member this.Execute (x: TodosCluster) =
+        interface Command<TodosContext, TodoEvent> with
+            member this.Execute (x: TodosContext) =
                 match this with
                 | AddTodo t -> 
                     match x.AddTodo t with
@@ -38,14 +37,14 @@ Example:
             member this.Undoer = None
 ```
 
-It is possible, although uncommon, to have, for a command, cases that can return multiple events as follows:
+A command may return more than one event:
 
 ```FSharp
     type TodoCommand =
         [...]
         | Add2Todos of Todo * Todo
         interface Command<TodosCluster, TodoEvent> with
-            member this.Execute (x: TodosClusten) =
+            member this.Execute (x: TodosContext) =
             [...]
             match this with
             | Add2Todos (t1, t2) -> 
@@ -59,15 +58,16 @@ It is possible, although uncommon, to have, for a command, cases that can return
             member this.Undoer
 
 ```
-Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed on the current state, give an Ok result, i.e. a valid state (and no error). 
+Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed on the current state, return an Ok result, i.e. a valid state (and no error). 
 
-Even though the Command Handler using lock ensures immediate consistency, the _evolve_ tolerates inconsistent events.
+The _evolve_ tolerates inconsistent events.
 Thus the _evolve_ will just skip events that, when processed, return an error.
 
 ## Undoer
 
 A command case may have associated an _undoer_ which is similar to a command itself and is aimed to eventually do the "reverse" of that command case.
 We need the _undoer_ only if the storage we use lacks support for multiple stream transactions (like EventStoreDb).
+(Note: I may not support EventStoreDb in the future. I probably will just stick to the Postgres Db as event-store and Apache Kafka as event-broker.)
 
 ```FSharp
     type Undoer<'A, 'E when 'E :> Event<'A>> = 'A -> Result<List<'E>, string>
@@ -102,7 +102,7 @@ From the code with some comments:
         | RemoveTag g -> 
             // block to be executed before the actual command removing tag 
             // is executed. It will return another function with the context needed (the tag itself)
-            (fun (x: TagsCluster) ->
+            (fun (x: TagsContext) ->
                 result {
                     let! tag = x.GetTag g
                     let result =
@@ -111,7 +111,7 @@ From the code with some comments:
                         // It will return the list of events to be applied to the cluster state to compensate the effect of the command. 
                         // Note that the tag is the context needed to readd the tag to the  state.
 
-                        fun (x': TagsCluster) ->
+                        fun (x': TagsContext) ->
                             x'.AddTag tag 
                             |> Result.map (fun _ -> [TagAdded tag])
                     return result
@@ -121,8 +121,8 @@ From the code with some comments:
         | AddTag t ->
             // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. 
             // The context is the tag itself (particularly its id), that can't be lost during the transaction.
-            (fun (_: TagsCluster) ->
-                fun (x': TagsCluster) ->
+            (fun (_: TagsContext) ->
+                fun (x': TagsContext) ->
                     x'.RemoveTag t.Id 
                     |> Result.map (fun _ -> [TagAdded t])
                 |> Ok
@@ -132,6 +132,6 @@ From the code with some comments:
 ```
 
 
-Source code: [Commands.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/clusters/Todos/Commands.fs))
+[Commands.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Tags/Commands.fs)
 
 

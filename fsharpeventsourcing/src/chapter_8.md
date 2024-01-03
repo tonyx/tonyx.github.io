@@ -1,25 +1,20 @@
 # Refactoring strategy
 
-By cluster refactoring, I mean when we just move models (collections of entities) among clusters.
+By cluster refactoring, I mean when we just move models (collections of entities) among contexts.
 
 Here I am showing a strategy for refactoring in terms of:  
-- moving the model's ownership between clusters, 
-- introducing new clusters 
-- upgrading old clusters.
-- dropping clusters.
+- moving the model's ownership between contexts, 
+- introducing new contexts 
+- upgrading old contexts.
+- dropping contexts.
 
-The problem arises because it looks overcomplicated d to make upfront decisions about clusters.
-
-It looks to me more convenient to have a few clusters, for instance in a development and prototyping stage because this will simplify testing, prototyping, and building the application service layer.
-Consider the extreme when we have everything in a single cluster. It would mean that the application service layer will be able to handle all the models with few lines of code (just building single command for the repository)
-
-However, at a later stage, proper refactoring is probably needed for performance reasons.
+The problem arises because it looks overcomplicated d to make upfront decisions about contexts. Consider that an application may start, for simplicity, with a single context and then, at a later stage, we may want to split it into multiple contexts.
 
 Refactoring leaves the application service layer behavior unchanged.
 
 The steps that may be followed are:
-- defining new clusters and eventually creating upgraded versions of current clusters
-- moving entities ownership
+- defining new contexts and eventually creating upgraded versions of current contexts
+- moving collection of entities from contexts to others.
 - creating an upgraded version of the application service layer using the new versions
 - applying the equivalent tests of the previous service layer to the new one.
 
@@ -44,5 +39,5 @@ There are specific attributes to distinguish current and "upgrading" versions of
 
 A migration function is needed to extract data from the current version and store it in the upgraded version.
 
-Code here: [MultiVersionsTests.fs](https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample.Test/MultiVersionsTests.fs)
+Code here: [MultiVersionsTests.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample.Test/MultiVersionsTests.fs)
 

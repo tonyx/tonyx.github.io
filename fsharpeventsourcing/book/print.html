@@ -163,10 +163,9 @@ I'll show how we can handle two versions of the same application that use differ
 That means that you may avoid caring about the cluster configuration when prototyping the application. Creating cluster will means no more than partitioning the set of the collections of entities. </p>
 <p>A prototype of an application may start with a single cluster managing all the entities. Then, when the application grows, you may want to split the cluster in two or more clusters. This is what I call &quot;cluster refactoring&quot;.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="entities"><a class="header" href="#entities">Entities</a></h1>
-<p>I can represent entities as records. They needs a unique identifier (Id). 
-In general, any entity has no direct reference to any other entity. However it  may reference other entities them by their id (as an extenal reference, similar to the concept of foreign key).  So for instance a <em>todo</em> may contain a list of ids of tags  and a list of ids of categories that are related to it (any todo may reference zero or more tags and zero or more categories).
-You may change this approach and refer entities in direct way rather than using key: for instance, if you have an <em>order</em> entity and an <em>order item</em> entity you may prefer that order items are a list of actual orderitem type rather than a list of ids. Just remember that you can't have circular dependencies in F# (unless you explicitely use keywords like <em>rec</em> and <em>and</em>). </p>
-<p>Here there is my todo entity definition:</p>
+<p>I can represent entities as records. They need a unique identifier (ID). 
+I can reference other entities by their Ids.</p>
+<p>This is the Todo entity definition:</p>
 <pre><code class="language-FSharp">    type Todo =
         {
             Id: Guid
@@ -184,16 +183,17 @@ You may change this approach and refer entities in direct way rather than using 
                     todos = []
                 }
 </code></pre>
-<p>Note that sometimes I may use the term &quot;model&quot; to refer to an entity or to a collection of entities. For instance, the &quot;Todos&quot; model is a collection of &quot;Todo&quot; entities.</p>
-<p>It is a good practice to define an explicit &quot;Zero&quot; static member for entitiy. The cluster will use it to define its own <em>Zero</em> static member which is mandatory for clusters: So a cluster expose its <em>Zero</em> by means of the <em>Zero</em> of its entities.
-The <em>Zero</em> static member for a cluster is mandatory and represents its initial state.<br />
-Note that in a popular full-stack development FSharp technology (<a href="https://safe-stack.github.io">&quot;Safe stack&quot;</a> which ingludes <a href="https://github.com/Zaid-Ajaj/Fable.Remoting">Fable remoting</a>) the definitions of the entities that are shared among the client side (Fable to Javascript node based app) and the server side (.net core web service based app) <a href="https://fable.io">Fable</a>). So the definition of the entities need to stay in a separate project shared referenced by the the client and the server projects.
-This means that we would define the &quot;Todo&quot;, the &quot;Tag&quot; and the &quot;Category&quot; types in a shared project.</p>
-<p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/entities/Todos.fs">TodosModel.fs</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="clusters"><a class="header" href="#clusters">Clusters</a></h1>
-<p>A cluster is just a group of collections of entities that form a transactional boundary.
-Clusters will be associated with streams of events.
-You can get the current state of any cluster by processing the stored events using the <em>evolve</em> function.  <em>events</em> are closely related to members of the cluster that end up in Update/Delete/Remove of some entity (even though there is no actual change because we are using immutable data structures).</p>
+<p>The Context will define a <em>Zero</em> static member (initial state).
+In case we use 
+<a href="https://github.com/Zaid-Ajaj/Fable.Remoting">Fable remoting</a>)
+then we need to share the definition of the entities between the client and the server side.
+(Shared project)</p>
+<p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample.Shared/Entities.fs">TodosModel.fs</a></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="context"><a class="header" href="#context">Context</a></h1>
+<p>A context is just a group of collections of entities.
+Roughly speaking, a context is a group of entities that are related to each. We may use the adjective &quot;bounded&quot; to describe a context.
+Context will be associated with streams of events.
+We can get the state of any cluster by processing the stored events using the <em>evolve</em> function.  <em>events</em> are closely related to members of the cluster that end up in Update/Delete/Remove of some entity (even though there is no actual change because we are using immutable data structures).</p>
 <p>Static members that are mandatory for any cluster of entities are:</p>
 <ul>
 <li>
@@ -203,15 +203,13 @@ You can get the current state of any cluster by processing the stored events usi
 <p><strong>StorageName</strong> and  <strong>Version</strong>: this combination uniquely identifies the cluster and lets the storage know in which stream to store events and snapshots. Whatever will be the storage (memory, Postgres, EventstoreDb, etc.) the cluster will be stored in a stream named as the concatenation of the <em>StorageName</em> and the <em>Version</em> (i.e. &quot;_todo_01&quot;)</p>
 </li>
 <li>
-<p><strong>Lock</strong>: a lock object is used to protect the cluster from concurrent access.
-The Command handler uses Locks. An application layer may use locks when involves multiple streams of events.</p>
+<p><strong>Lock</strong>: a lock object is used to protect the cluster from concurrent access (will be used by the Command handler if the PessimisticLock is set to true in config).</p>
 </li>
 <li>
 <p><strong>SnapshotsInterval</strong>: the number of events that can be stored after a snapshot before creating a new snapshot (i.e. the number of events between snapshots)</p>
 </li>
 </ul>
-<p>The Command handler returns the updated state of any cluster by applying the events that are stored after the latest valid state (which is cached in memory).
-The Command handler is also able to rebuild the state starting from the last stored snapshot.</p>
+<p>The Command handler, by the runCommand function, applies a command, then stores the related events and returns the EventStore (database) Ids of those stored events and the KafkaDeliveryResult (if Kafka broker is enabled).</p>
 <p>Example of a cluster of entities handling the todos and the categories:</p>
 <pre><code class="language-FSharp">    type TodosCluster =
         {
@@ -230,8 +228,7 @@ The Command handler is also able to rebuild the state starting from the last sto
         static member SnapshotsInterval =
             15
 </code></pre>
-<p>Some instance members virtually change the state in the sense that they return a new instance in a different state or an error. It means that such members will <em>add/update/delete</em> some of their entities. you need to associate those members with <em>events</em> and <em>commands</em> (see next section).
-In the following example, the TodosCluster can check the validity of the categories referenced by any todo before adding it (to preserve the invariant rule that you can add only todo with valid category ID references).
+<p>In the following example, the TodosContext can check the validity of the categories referenced by any todo before adding it (to preserve the invariant rule that you can add only todo with valid category ID references).
 It uses the &quot;result&quot; computational expression included in the FsToolkit.ErrorHandling library which supports the <a href="https://fsharpforfunandprofit.com/rop/"><em>railway-oriented programming</em></a> pattern of handling errors.</p>
 <p>Example:</p>
 <pre><code class="language-FSharp">    member this.AddTodo (t: Todo) =
@@ -251,11 +248,10 @@ It uses the &quot;result&quot; computational expression included in the FsToolki
                     }
             }
 </code></pre>
-<p>Conclusions: In adding/removing/updating entities in a cluster we can protect any invariant conditions related to other entities that are under the same cluster without the need for any explicit transaction. We can protect other invariant conditions that may involve entities of other clusters anyway. This will be possible at the service application layer (see in the next sections) running commands involving multiple streams of events. This sometimes will involve the use of explicit transactions when supported by the storage (i.e. Postgres), and sometimes will involve the &quot;undoer&quot;: a special command attached to a command to undo the changes made by the command itself (see the next sections), useful when the storage does not support multiple stream transactions.</p>
-<p>Source code: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/clusters/Todos/Cluster.fs">TodosCluster.fs</a></p>
+<p>Todo: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Todos/Context.fs">Context.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="events"><a class="header" href="#events">Events</a></h1>
-<p>Events are discriminated unions (DU) with cases associated with members of the cluster doing <em>add</em>/<em>update</em>/<em>delete</em>/ entities.</p>
-<p>When we process an event it returns a new state or an error, which fits the following definition of Process taken from the Core.fs file:</p>
+<p>Events are discriminated unions (DU) with cases associated with members of the context that end up in <em>adding</em>/<em>updating</em>/<em>deleting</em>/ entities.</p>
+<p>When we process an event it returns a new state or an error: </p>
 <pre><code class="language-FSharp">    type Event&lt;'A&gt; =
         abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
 </code></pre>
@@ -267,7 +263,7 @@ The <em>Process</em> member of the event is implemented by calling the related c
         | TodoAdded of Todo
         | TodoRemoved of Guid
             interface Event&lt;TodosCluster&gt; with
-                member this.Process (x: TodosCluster ) =
+                member this.Process (x: TodosContext ) =
                     match this with
                     | TodoAdded (t: Todo) -&gt; 
                         x.AddTodo t
@@ -275,12 +271,11 @@ The <em>Process</em> member of the event is implemented by calling the related c
                         x.RemoveTodo g
 
 </code></pre>
-<p>Source code:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/aggregates/Todos/Events.fs">Events.fs</a></p>
+<p>Source code:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Todos/Events.fs">Events.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
 <p>A Command type is a Discriminated Union. Executing the command on a specific cluster means returning a proper list of events or an error.
 You can also specify <em>&quot;command undoers&quot;</em>, that allow you to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the related command.
-For instance, the &quot;under&quot; of AddTodo is the related RemoveTodo (see next paragraph).</p>
-<p>The abstract definitions of Command and Undoer  are:</p>
+For example, the &quot;under&quot; of AddTodo is the related RemoveTodo (see next paragraph).</p>
 <pre><code class="language-FSharp">
     type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
 
@@ -294,8 +289,8 @@ For instance, the &quot;under&quot; of AddTodo is the related RemoveTodo (see ne
         | AddTodo of Todo
         | RemoveTodo of Guid
 
-        interface Command&lt;TodosCluster, TodoEvent&gt; with
-            member this.Execute (x: TodosCluster) =
+        interface Command&lt;TodosContext, TodoEvent&gt; with
+            member this.Execute (x: TodosContext) =
                 match this with
                 | AddTodo t -&gt; 
                     match x.AddTodo t with
@@ -308,12 +303,12 @@ For instance, the &quot;under&quot; of AddTodo is the related RemoveTodo (see ne
                         | Error x -&gt; x |&gt; Error
             member this.Undoer = None
 </code></pre>
-<p>It is possible, although uncommon, to have, for a command, cases that can return multiple events as follows:</p>
+<p>A command may return more than one event:</p>
 <pre><code class="language-FSharp">    type TodoCommand =
         [...]
         | Add2Todos of Todo * Todo
         interface Command&lt;TodosCluster, TodoEvent&gt; with
-            member this.Execute (x: TodosClusten) =
+            member this.Execute (x: TodosContext) =
             [...]
             match this with
             | Add2Todos (t1, t2) -&gt; 
@@ -327,12 +322,13 @@ For instance, the &quot;under&quot; of AddTodo is the related RemoveTodo (see ne
             member this.Undoer
 
 </code></pre>
-<p>Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed on the current state, give an Ok result, i.e. a valid state (and no error). </p>
-<p>Even though the Command Handler using lock ensures immediate consistency, the <em>evolve</em> tolerates inconsistent events.
+<p>Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed on the current state, return an Ok result, i.e. a valid state (and no error). </p>
+<p>The <em>evolve</em> tolerates inconsistent events.
 Thus the <em>evolve</em> will just skip events that, when processed, return an error.</p>
 <h2 id="undoer"><a class="header" href="#undoer">Undoer</a></h2>
 <p>A command case may have associated an <em>undoer</em> which is similar to a command itself and is aimed to eventually do the &quot;reverse&quot; of that command case.
-We need the <em>undoer</em> only if the storage we use lacks support for multiple stream transactions (like EventStoreDb).</p>
+We need the <em>undoer</em> only if the storage we use lacks support for multiple stream transactions (like EventStoreDb).
+(Note: I may not support EventStoreDb in the future. I probably will just stick to the Postgres Db as event-store and Apache Kafka as event-broker.)</p>
 <pre><code class="language-FSharp">    type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
 </code></pre>
 <p>When we use storages like <em>in memory</em> or <em>Postgres</em>, we don't need to define any <em>undoer</em> for our commands, because those storages support multiple stream transactions.
@@ -354,7 +350,7 @@ However, we may want to roll back the effect of those events by adding events th
         | RemoveTag g -&gt; 
             // block to be executed before the actual command removing tag 
             // is executed. It will return another function with the context needed (the tag itself)
-            (fun (x: TagsCluster) -&gt;
+            (fun (x: TagsContext) -&gt;
                 result {
                     let! tag = x.GetTag g
                     let result =
@@ -363,7 +359,7 @@ However, we may want to roll back the effect of those events by adding events th
                         // It will return the list of events to be applied to the cluster state to compensate the effect of the command. 
                         // Note that the tag is the context needed to readd the tag to the  state.
 
-                        fun (x': TagsCluster) -&gt;
+                        fun (x': TagsContext) -&gt;
                             x'.AddTag tag 
                             |&gt; Result.map (fun _ -&gt; [TagAdded tag])
                     return result
@@ -373,8 +369,8 @@ However, we may want to roll back the effect of those events by adding events th
         | AddTag t -&gt;
             // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. 
             // The context is the tag itself (particularly its id), that can't be lost during the transaction.
-            (fun (_: TagsCluster) -&gt;
-                fun (x': TagsCluster) -&gt;
+            (fun (_: TagsContext) -&gt;
+                fun (x': TagsContext) -&gt;
                     x'.RemoveTag t.Id 
                     |&gt; Result.map (fun _ -&gt; [TagAdded t])
                 |&gt; Ok
@@ -382,21 +378,22 @@ However, we may want to roll back the effect of those events by adding events th
             |&gt; Some
 
 </code></pre>
-<p>Source code: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/clusters/Todos/Commands.fs">Commands.fs</a>)</p>
+<p><a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Tags/Commands.fs">Commands.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
-<p>An application service layer provides services that use Repository and Storage to get the state and/or send commands to one or more clusters (eventually in an atomic/transactional way with potential performance issues) and store the related events.</p>
-<p>Here is one of the simplest examples of an entry for a service involving a single cluster, by building and running an AddTag command.</p>
-<pre><code class="language-FSharp">    member this.addTag tag =
-        result {
-            let! _ =
-                tag
-                |&gt; AddTag
-                |&gt; (runCommand&lt;TagsCluster, TagEvent&gt; storage)
-            return ()
-        }
+<p>An application service layer implements multiple context logic.
+Here is one of the simplest examples of an entry for a service involving a single context, by building and running an AddTag command.</p>
+<pre><code class="language-FSharp">        member this.AddTag tag =
+            result {
+                let! result =
+                    tag
+                    |&gt; AddTag
+                    |&gt; runCommand&lt;TagsContext, TagEvent&gt; storage eventBroker tagsStateViewer
+                return result 
+            }
 </code></pre>
-<p>The service layer sends commands to the Command Handler so that this one can run it producing and storing the related events.</p>
-<p>Here is an example of using an explicit lock for consistency in an operation involving two clusters (we check that the tag is valid before adding the todo and inhibit write access to tags while the todo is being added).</p>
+<p>As in the previous example, the service layer sends commands to the Command Handler so that this one can run it producing and storing the related events, returning the EventStore Ids of the stored events and the KafkaDeliveryResult (if Kafka broker is enabled).</p>
+<p>We may adopt strong and immediate consistency by enforcing the use of a pessimistic lock on the command handler.
+An example of explicit use of lock:</p>
 <pre><code class="language-FSharp">    member this.addTodo todo =
         lock TagsCluster.LockObj &lt;| fun () -&gt;
             result {
@@ -415,32 +412,6 @@ However, we may want to roll back the effect of those events by adding events th
             }
 </code></pre>
 <p>The todo can be added only if it contains valid tag references.</p>
-<p>I may just have the same effect by passing the entire block to a mailboxprocessor:</p>
-<pre><code class="language-FSharp">        member this.AddTodo todo =
-            let f = fun () -&gt;
-                ResultCE.result {
-                    let! (_, tagState) = storage |&gt; getState&lt;TagsCluster, TagEvent&gt; 
-                    let tagIds = tagState.GetTags() |&gt;&gt; (fun x -&gt; x.Id)
-
-                    let! tagIdIsValid =    
-                        (todo.TagIds.IsEmpty ||
-                        todo.TagIds |&gt; List.forall (fun x -&gt; (tagIds |&gt; List.contains x)))
-                        |&gt; boolToResult &quot;A tag reference contained in the todo is related to a tag that does not exist&quot;
-
-                    let! _ =
-                        todo
-                        |&gt; TodoCommand.AddTodo
-                        |&gt; runCommand&lt;TodosCluster, TodoEvent&gt; storage
-                    let _ = 
-                        storage
-                        |&gt; mkSnapshotIfInterval&lt;TodosCluster, TodoEvent&gt;
-                return ()
-            }
-            async {
-                return processor.PostAndReply (fun rc -&gt; f, rc)
-            }
-            |&gt; Async.RunSynchronously
-</code></pre>
 <h2 id="running-two-commands-to-different-clusters"><a class="header" href="#running-two-commands-to-different-clusters">Running two commands to different clusters</a></h2>
 <p>This code removes the tag with any reference to it. It builds two commands and makes the repository process them at the same time.
 This code removes a tag and any reference to it.</p>
@@ -451,7 +422,7 @@ This code removes a tag and any reference to it.</p>
             return! runTwoCommands&lt;TagsCluster, TodosCluster, TagEvent, TodoEvent&gt; storage removeTag removeTagRef
         }
 </code></pre>
-<p>The <em>runTwoCommands</em> uses the undoer of the storage requires it.</p>
+<p>The <em>runTwoCommands</em> uses the undoer if the current event store requires it (i.e. it lacks multiple stream transactions).</p>
 <p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/App.fs">App.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="command-handler"><a class="header" href="#command-handler">Command Handler</a></h1>
 <p>The Command Handler has the responsibility of:</p>
@@ -461,38 +432,36 @@ This code removes a tag and any reference to it.</p>
 <li>making periodic snapshots, according to the SnapshotsInterval.</li>
 </ul>
 <p>There are two different command handler implementations:</p>
-<p>Code in <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/CommandHandler.fs">CommandHandler.fs</a>
-<a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Lib/Core.fs">Core.fs</a></p>
+<p><a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/CommandHandler.fs">CommandHandler.fs</a></p>
 <p>There is also an experimental repository based on a publish/subscribe storage model (Eventstoredb).
 See <em>lightrepository</em></p>
 <p><a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/LightCommandHandler.fs">LightCommandHandler.fs</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="storage"><a class="header" href="#storage">Storage</a></h1>
-<p>A storage stores and retrieves events and snapshots related to each single cluster.</p>
-<p>I created also a &quot;lightweight&quot; version of the storage interface assuming that there are storage types where you will not need all the full storage interface.</p>
-<p>Reset must be used only for development and testing, and cannot be used in production. See Conf.fs.</p>
-<p>An example of a storage implementation in Postgres: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/DbStorage.fs">DbStorage.fs</a></p>
-<h1 id="eventstorebridge"><a class="header" href="#eventstorebridge">EventStoreBridge:</a></h1>
+<p>Note: from version 1.4.7 the commandHandler can use a Kafka broker to retrieve the current state.
+That means that the commandHandler can be used in a distributed environment, where the state is stored in a Kafka topic.
+Moreover, it can anyway rely on the EventStoreDb to rebuild the current state in case of failure of the Kafka broker (for example when events are out of sync).</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="eventstore-database"><a class="header" href="#eventstore-database">EventStore (database)</a></h1>
+<p>An event-store, stores and retrieves events and snapshots related to each single context.</p>
+<p>An example of a storage implementation in Postgres: 
+<a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/PgEventStore.fs">DbStorage.fs</a></p>
+<h1 id="eventstoredb"><a class="header" href="#eventstoredb">EventStoreDb:</a></h1>
 <p>The alternative storage is the EventStoreBridge, which is a bridge to the EventStore database.
 It is still experimental.
-<a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/EventStoreStorage.fs">EventStoreBridge.fs</a>.</p>
+<a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/EventStoreStorage.fs">EventStoreStorage.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="refactoring-strategy"><a class="header" href="#refactoring-strategy">Refactoring strategy</a></h1>
-<p>By cluster refactoring, I mean when we just move models (collections of entities) among clusters.</p>
+<p>By cluster refactoring, I mean when we just move models (collections of entities) among contexts.</p>
 <p>Here I am showing a strategy for refactoring in terms of:</p>
 <ul>
-<li>moving the model's ownership between clusters, </li>
-<li>introducing new clusters </li>
-<li>upgrading old clusters.</li>
-<li>dropping clusters.</li>
+<li>moving the model's ownership between contexts, </li>
+<li>introducing new contexts </li>
+<li>upgrading old contexts.</li>
+<li>dropping contexts.</li>
 </ul>
-<p>The problem arises because it looks overcomplicated d to make upfront decisions about clusters.</p>
-<p>It looks to me more convenient to have a few clusters, for instance in a development and prototyping stage because this will simplify testing, prototyping, and building the application service layer.
-Consider the extreme when we have everything in a single cluster. It would mean that the application service layer will be able to handle all the models with few lines of code (just building single command for the repository)</p>
-<p>However, at a later stage, proper refactoring is probably needed for performance reasons.</p>
+<p>The problem arises because it looks overcomplicated d to make upfront decisions about contexts. Consider that an application may start, for simplicity, with a single context and then, at a later stage, we may want to split it into multiple contexts.</p>
 <p>Refactoring leaves the application service layer behavior unchanged.</p>
 <p>The steps that may be followed are:</p>
 <ul>
-<li>defining new clusters and eventually creating upgraded versions of current clusters</li>
-<li>moving entities ownership</li>
+<li>defining new contexts and eventually creating upgraded versions of current contexts</li>
+<li>moving collection of entities from contexts to others.</li>
 <li>creating an upgraded version of the application service layer using the new versions</li>
 <li>applying the equivalent tests of the previous service layer to the new one.</li>
 </ul>
@@ -511,7 +480,7 @@ Consider the extreme when we have everything in a single cluster. It would mean 
 </code></pre>
 <p>There are specific attributes to distinguish current and &quot;upgrading&quot; versions of elements of the application. </p>
 <p>A migration function is needed to extract data from the current version and store it in the upgraded version.</p>
-<p>Code here: <a href="https://github.com/tonyx/Micro_ES_FSharp_Lib/blob/main/Sharpino.Sample.Test/MultiVersionsTests.fs">MultiVersionsTests.fs</a></p>
+<p>Code here: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample.Test/MultiVersionsTests.fs">MultiVersionsTests.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
 <p>As I mentioned in the previous chapter we may have different versions of the same application based on different clusters.</p>
 <p>We may want to test all of them and also we may want to test the migration function from one version to another in those tests.
