@@ -1,6 +1,6 @@
 # Commands
 
-A Command type is a Discriminated Union. Executing the command on a specific cluster means returning a proper list of events or an error.
+A Command type is a Discriminated Union. Executing the command on a specific cluster or aggregate means returning a proper list of events or an error.
 You can also specify _"command undoers"_, that allow you to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the related command.
 For example, the "under" of AddTodo is the related RemoveTodo (see next paragraph).
 
@@ -58,10 +58,11 @@ A command may return more than one event:
             member this.Undoer
 
 ```
-Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed on the current state, return an Ok result, i.e. a valid state (and no error). 
+Any command must ensure that it will return Result.OK (and therefore, one or more events) only if the events to be returned, when processed on the current state, return an Ok result, i.e. a valid state (and no error). 
 
 The _evolve_ tolerates inconsistent events.
 Thus the _evolve_ will just skip events that, when processed, return an error.
+This feature is associated with a specific permissive optimistic lock type that we will see later.
 
 ## Undoer
 
@@ -82,6 +83,7 @@ The abstract definition of a command is:
         abstract member Execute: 'A -> Result<List<'E>, string>
         abstract member Undoer: Option<'A -> Result<Undoer<'A, 'E>, string>>
 ```
+(note: this feature should be useful in conjunction with EventStoreDb. However I haven't gone so far in supporting EventStoreDb yet)
 
 The "command undoer" returns a function that, applied to the state, must return the actual _undoer_.
 

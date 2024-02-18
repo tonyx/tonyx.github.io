@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Events</title>
+        <title>Refactoring</title>
 
 
         <!-- Custom HTML head -->
@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_1.html"><strong aria-hidden="true">2.</strong> Entities</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">3.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html" class="active"><strong aria-hidden="true">4.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">5.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">6.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">7.</strong> Repository</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">8.</strong> Storage</a></li><li class="chapter-item expanded "><a href="chapter_8.html"><strong aria-hidden="true">9.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html"><strong aria-hidden="true">10.</strong> Testing</a></li><li class="chapter-item expanded "><a href="chapter_10.html"><strong aria-hidden="true">11.</strong> Apache Kafka</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_1.html"><strong aria-hidden="true">2.</strong> Entities</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">3.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">4.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">5.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">6.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">7.</strong> Repository</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">8.</strong> Storage</a></li><li class="chapter-item expanded "><a href="chapter_8.html" class="active"><strong aria-hidden="true">9.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html"><strong aria-hidden="true">10.</strong> Testing</a></li><li class="chapter-item expanded "><a href="chapter_10.html"><strong aria-hidden="true">11.</strong> Apache Kafka</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -144,39 +144,50 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="events"><a class="header" href="#events">Events</a></h1>
-<p>Events are discriminated unions (DU) with cases associated with members of the context that end up in <em>adding</em>/<em>updating</em>/<em>deleting</em>/ entities.</p>
-<p>When we process an event it returns a new state or an error: </p>
-<pre><code class="language-FSharp">    type Event&lt;'A&gt; =
-        abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
-</code></pre>
-<p>The <em>'A</em> is the generic context or aggregate type, the event is associated with.</p>
-<p>This is an example of a concrete implementation of an event related to the TodoCluster members <em>Add</em> and <em>Remove</em>.</p>
-<p>So, for example, the <em>TodoAdded</em> event is associated with the <em>AddTodo</em> member.
-The <em>Process</em> member of the event is implemented by calling the related clusters member.</p>
-<pre><code class="language-Fsharp">    type TodoEvent =
-        | TodoAdded of Todo
-        | TodoRemoved of Guid
-            interface Event&lt;TodosCluster&gt; with
-                member this.Process (x: TodosContext ) =
-                    match this with
-                    | TodoAdded (t: Todo) -&gt; 
-                        x.AddTodo t
-                    | TodoRemoved (g: Guid) -&gt; 
-                        x.RemoveTodo g
+                        <h1 id="refactoring-strategy"><a class="header" href="#refactoring-strategy">Refactoring strategy</a></h1>
+<p>By cluster refactoring, I mean when we just move models (collections of entities) among contexts.</p>
+<p>Here I am showing a strategy for refactoring in terms of:</p>
+<ul>
+<li>moving the model's ownership between contexts, </li>
+<li>introducing new contexts </li>
+<li>upgrading old contexts.</li>
+<li>dropping contexts.</li>
+</ul>
+<p>The problem arises because it looks overcomplicated d to make upfront decisions about contexts. Consider that an application may start, for simplicity, with a single context and then, at a later stage, we may want to split it into multiple contexts.</p>
+<p>Refactoring leaves the application service layer behavior unchanged.</p>
+<p>The steps that may be followed are:</p>
+<ul>
+<li>defining new contexts and eventually creating upgraded versions of current contexts</li>
+<li>moving collection of entities from contexts to others.</li>
+<li>creating an upgraded version of the application service layer using the new versions</li>
+<li>applying the equivalent tests of the previous service layer to the new one.</li>
+</ul>
+<p>About this latest point, a parametric testing strategy is also possible.</p>
+<p>Here is an example of a list of tuples of multiple application version configurations with migration functions.</p>
+<pre><code class="language-FSharp">let allVersions =
+    [
+        (applicationPostgresStorage,        applicationPostgresStorage,       fun () -&gt; () |&gt; Result.Ok)
+        (applicationShadowPostgresStorage,  applicationShadowPostgresStorage, fun () -&gt; () |&gt; Result.Ok)
+        (applicationPostgresStorage,        applicationShadowPostgresStorage, applicationPostgresStorage._migrator.Value)
 
+        (applicationMemoryStorage,          applicationMemoryStorage,         fun () -&gt; () |&gt; Result.Ok)
+        (applicationShadowMemoryStorage,    applicationShadowMemoryStorage,   fun () -&gt; () |&gt; Result.Ok)
+        (applicationMemoryStorage,          applicationShadowMemoryStorage,   applicationMemoryStorage._migrator.Value)
+    ]
 </code></pre>
-<p>Source code:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Todos/Events.fs">Events.fs</a></p>
+<p>There are specific attributes to distinguish current and &quot;upgrading&quot; versions of elements of the application. </p>
+<p>A migration function is needed to extract data from the current version and store it in the upgraded version.</p>
+<p>Code here: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample.Test/MultiVersionsTests.fs">MultiVersionsTests.fs</a></p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="chapter_2.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="chapter_7.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next" href="chapter_4.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="chapter_9.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -186,11 +197,11 @@ The <em>Process</em> member of the event is implemented by calling the related c
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="chapter_2.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="chapter_7.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next" href="chapter_4.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="chapter_9.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

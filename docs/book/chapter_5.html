@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Events</title>
+        <title>Application Layer</title>
 
 
         <!-- Custom HTML head -->
@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_1.html"><strong aria-hidden="true">2.</strong> Entities</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">3.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html" class="active"><strong aria-hidden="true">4.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">5.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">6.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">7.</strong> Repository</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">8.</strong> Storage</a></li><li class="chapter-item expanded "><a href="chapter_8.html"><strong aria-hidden="true">9.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html"><strong aria-hidden="true">10.</strong> Testing</a></li><li class="chapter-item expanded "><a href="chapter_10.html"><strong aria-hidden="true">11.</strong> Apache Kafka</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_1.html"><strong aria-hidden="true">2.</strong> Entities</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">3.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">4.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">5.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html" class="active"><strong aria-hidden="true">6.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">7.</strong> Repository</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">8.</strong> Storage</a></li><li class="chapter-item expanded "><a href="chapter_8.html"><strong aria-hidden="true">9.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html"><strong aria-hidden="true">10.</strong> Testing</a></li><li class="chapter-item expanded "><a href="chapter_10.html"><strong aria-hidden="true">11.</strong> Apache Kafka</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -144,39 +144,61 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="events"><a class="header" href="#events">Events</a></h1>
-<p>Events are discriminated unions (DU) with cases associated with members of the context that end up in <em>adding</em>/<em>updating</em>/<em>deleting</em>/ entities.</p>
-<p>When we process an event it returns a new state or an error: </p>
-<pre><code class="language-FSharp">    type Event&lt;'A&gt; =
-        abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
+                        <h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
+<p>An application service layer implements multiple context logic.
+Here is one of the simplest examples of an entry for a service involving a single context, by building and running an AddTag command.</p>
+<pre><code class="language-FSharp">        member this.AddTag tag =
+            result {
+                let! result =
+                    tag
+                    |&gt; AddTag
+                    |&gt; runCommand&lt;TagsContext, TagEvent&gt; storage eventBroker tagsStateViewer
+                return result 
+            }
 </code></pre>
-<p>The <em>'A</em> is the generic context or aggregate type, the event is associated with.</p>
-<p>This is an example of a concrete implementation of an event related to the TodoCluster members <em>Add</em> and <em>Remove</em>.</p>
-<p>So, for example, the <em>TodoAdded</em> event is associated with the <em>AddTodo</em> member.
-The <em>Process</em> member of the event is implemented by calling the related clusters member.</p>
-<pre><code class="language-Fsharp">    type TodoEvent =
-        | TodoAdded of Todo
-        | TodoRemoved of Guid
-            interface Event&lt;TodosCluster&gt; with
-                member this.Process (x: TodosContext ) =
-                    match this with
-                    | TodoAdded (t: Todo) -&gt; 
-                        x.AddTodo t
-                    | TodoRemoved (g: Guid) -&gt; 
-                        x.RemoveTodo g
+<p>As in the previous example, the service layer sends commands to the Command Handler so that this one can run it producing and storing the related events, returning the EventStore Ids of the stored events and the KafkaDeliveryResult (if Kafka broker is enabled).</p>
+<p>We may adopt strong and immediate consistency by enforcing the use of a pessimistic lock on the command handler.
+An example of explicit use of lock:</p>
+<pre><code class="language-FSharp">    member this.addTodo todo =
+        lock TagsCluster.LockObj &lt;| fun () -&gt;
+            result {
+                let! (_, tagState) = getState&lt;TagsCluster, TagEvent&gt;(storage)
+                let tagIds = tagState.GetTags() |&gt;&gt; (fun x -&gt; x.Id)
 
+                let! tagIdIsValid =    
+                    (todo.TagIds.IsEmpty ||
+                    todo.TagIds |&gt; List.forall (fun x -&gt; (tagIds |&gt; List.contains x)))
+                    |&gt; boolToResult &quot;A tag reference contained is in the todo is related to a tag that does not exist&quot;
+
+                return! 
+                    todo
+                    |&gt; TodoCommand.AddTodo
+                    |&gt; (runCommand&lt;TodosCluster, TodoEvent&gt; storage)
+            }
 </code></pre>
-<p>Source code:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Todos/Events.fs">Events.fs</a></p>
+<p>The todo can be added only if it contains valid tag references.</p>
+<h2 id="running-two-commands-to-different-clusters"><a class="header" href="#running-two-commands-to-different-clusters">Running two commands to different clusters</a></h2>
+<p>This code removes the tag with any reference to it. It builds two commands and makes the repository process them at the same time.
+This code removes a tag and any reference to it.</p>
+<pre><code class="language-FSharp">    member this.removeTag id =
+        ResultCE.result {
+            let removeTag = TagCommand.RemoveTag id
+            let removeTagRef = TodoCommand.RemoveTagRef id
+            return! runTwoCommands&lt;TagsCluster, TodosCluster, TagEvent, TodoEvent&gt; storage removeTag removeTagRef
+        }
+</code></pre>
+<p>The <em>runTwoCommands</em> uses the undoer if the current event store requires it (i.e. it lacks multiple stream transactions).</p>
+<p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/App.fs">App.fs</a></p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="chapter_2.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="chapter_4.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next" href="chapter_4.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="chapter_6.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -186,11 +208,11 @@ The <em>Process</em> member of the event is implemented by calling the related c
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="chapter_2.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="chapter_4.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next" href="chapter_4.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="chapter_6.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

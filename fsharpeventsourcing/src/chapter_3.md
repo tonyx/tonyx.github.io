@@ -8,7 +8,7 @@ When we process an event it returns a new state or an error:
     type Event<'A> =
         abstract member Process: 'A -> Result<'A, string>
 ```
-The _'A_ is the generic cluster type the event is associated with.
+The _'A_ is the generic context or aggregate type, the event is associated with.
 
 This is an example of a concrete implementation of an event related to the TodoCluster members _Add_ and _Remove_.
 
