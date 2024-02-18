@@ -145,7 +145,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
-<p>A Command type is a Discriminated Union. Executing the command on a specific cluster means returning a proper list of events or an error.
+<p>A Command type is a Discriminated Union. Executing the command on a specific cluster or aggregate means returning a proper list of events or an error.
 You can also specify <em>&quot;command undoers&quot;</em>, that allow you to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the related command.
 For example, the &quot;under&quot; of AddTodo is the related RemoveTodo (see next paragraph).</p>
 <pre><code class="language-FSharp">
@@ -194,9 +194,10 @@ For example, the &quot;under&quot; of AddTodo is the related RemoveTodo (see nex
             member this.Undoer
 
 </code></pre>
-<p>Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed on the current state, return an Ok result, i.e. a valid state (and no error). </p>
+<p>Any command must ensure that it will return Result.OK (and therefore, one or more events) only if the events to be returned, when processed on the current state, return an Ok result, i.e. a valid state (and no error). </p>
 <p>The <em>evolve</em> tolerates inconsistent events.
-Thus the <em>evolve</em> will just skip events that, when processed, return an error.</p>
+Thus the <em>evolve</em> will just skip events that, when processed, return an error.
+This feature is associated with a specific permissive optimistic lock type that we will see later.</p>
 <h2 id="undoer"><a class="header" href="#undoer">Undoer</a></h2>
 <p>A command case may have associated an <em>undoer</em> which is similar to a command itself and is aimed to eventually do the &quot;reverse&quot; of that command case.
 We need the <em>undoer</em> only if the storage we use lacks support for multiple stream transactions (like EventStoreDb).
@@ -210,6 +211,7 @@ Otherwise, we need to define an <em>undoer</em> if we know we are going to pass 
         abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
         abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
 </code></pre>
+<p>(note: this feature should be useful in conjunction with EventStoreDb. However I haven't gone so far in supporting EventStoreDb yet)</p>
 <p>The &quot;command undoer&quot; returns a function that, applied to the state, must return the actual <em>undoer</em>.</p>
 <p>So the undoers work in two shots: one to build a context for the eventual future undo, and one to actually... <em>do</em> the <em>undo</em>. </p>
 <p><strong>Example of &quot;undoer&quot;</strong> :</p>

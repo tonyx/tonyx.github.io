@@ -150,7 +150,7 @@
 <pre><code class="language-FSharp">    type Event&lt;'A&gt; =
         abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
 </code></pre>
-<p>The <em>'A</em> is the generic cluster type the event is associated with.</p>
+<p>The <em>'A</em> is the generic context or aggregate type, the event is associated with.</p>
 <p>This is an example of a concrete implementation of an event related to the TodoCluster members <em>Add</em> and <em>Remove</em>.</p>
 <p>So, for example, the <em>TodoAdded</em> event is associated with the <em>AddTodo</em> member.
 The <em>Process</em> member of the event is implemented by calling the related clusters member.</p>

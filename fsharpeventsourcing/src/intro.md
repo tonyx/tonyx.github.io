@@ -2,7 +2,7 @@
 
 [Sharpino](https://github.com/tonyx/Micro_ES_FSharp_Lib) is a little F# event sourcing framework.
 _Contexts_:  Objects that can be event sourced. Only one instance of a context can exist at a time.
-_Aggregates_: Object that can be event sourced. Many instances of an aggregate can exist at a time.
+_Aggregates_: Objects that can be event sourced. Many instances of an aggregate can exist at a time.
 
 Contexts and aggregates need to define members that do Add/Remove/Update operations functionally and by using Result type to handle errors.
 
@@ -27,4 +27,4 @@ The "version 2" of the application consists of three different clusters: one for
 Contexts represent rows. Some constraints are applied to the rows. The context is responsible for the seats. The seats are associated with the rows.
 
 ## Sample application 4. Booking system for seats in a stadium
-The same as the application 2 but where rows are aggregates (so I can have any number of instances of seat rows). The application uses the SAFE stack based template.
+The same as application 2 but where rows are aggregates (so I can have any number of instances of seat rows). The application uses the SAFE stack based template.

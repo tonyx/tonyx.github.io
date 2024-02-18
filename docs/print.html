@@ -147,21 +147,24 @@
                     <main>
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
 <p><a href="https://github.com/tonyx/Micro_ES_FSharp_Lib">Sharpino</a> is a little F# event sourcing framework.
-Even though the example provided are closer to the concept of 
-At the moment (2023-08-06) it supports <em>in memory</em>, <em>Postgres</em> and _EventStoreDb as storage for events.</p>
-<p>The framework is based on the concept of <em>clusters</em> and <em>command</em> around clusters.
-A cluster is a set of collections of entities. A command is a request to a cluster to perform an action involving one or more entities.</p>
-<p>This doc is quick overview of how Sharpino works by means of its sample application: a Todo list manager with tags and categories. Tags and categories work as a way to classify todos. We will see the difference between having a single cluster managing all the entities and having separate clusters for different entities.</p>
-<p>I'll focus on: entities, cluster, events, commands, service application layer, repository and storages.
-I'll also mention the problem of undoing a command and how to handle cluster refactoring (moving entities from one cluster to another and at the same time testing all those configurations).</p>
-<h2 id="the-sample-application"><a class="header" href="#the-sample-application">The sample application</a></h2>
-<p>As already mentioned the sample application is a todo list manager. Each todo contains references to Tags and Categories.
+<em>Contexts</em>:  Objects that can be event sourced. Only one instance of a context can exist at a time.
+<em>Aggregates</em>: Objects that can be event sourced. Many instances of an aggregate can exist at a time.</p>
+<p>Contexts and aggregates need to define members that do Add/Remove/Update operations functionally and by using Result type to handle errors.</p>
+<p>Contexts and aggregates need event types associated with Add/Remove/Update operations.
+Event types need associated commands
+Commands and events must be Discriminated Union types.</p>
+<p>This document is a guide to the Sharpino library. It is a work in progress.
+Focus on the following topics:
+entities, contexts, events, commands, service application layer, Event Store.</p>
+<h2 id="the-sample-application-1"><a class="header" href="#the-sample-application-1">The sample application 1.</a></h2>
+<p>A Todo list manager. Each todo contains references to Tags and Categories.
 I'll show how we can handle two versions of the same application that use different cluster configurations. This will help to talk about the cluster refactoring.</p>
-<p>The &quot;version 1&quot; has a cluster managing Todo and Categories, and another cluster managing Tags.</p>
+<p>The &quot;version 1&quot; has a context managing Todo and Categories, and another cluster managing Tags.</p>
 <p>The &quot;version 2&quot; of the application consists of three different clusters: one for the Todo model, one for the Categories model, and another one for the Tags model.</p>
-<p>The challenge about being able to write parametric tests that can be executed against the current and the next cluster configuration at the same time, having the migration between the former and the latter configuration.
-That means that you may avoid caring about the cluster configuration when prototyping the application. Creating cluster will means no more than partitioning the set of the collections of entities. </p>
-<p>A prototype of an application may start with a single cluster managing all the entities. Then, when the application grows, you may want to split the cluster in two or more clusters. This is what I call &quot;cluster refactoring&quot;.</p>
+<h2 id="sample-application-2-booking-system-for-seats-in-a-stadium"><a class="header" href="#sample-application-2-booking-system-for-seats-in-a-stadium">Sample application 2. Booking system for seats in a stadium</a></h2>
+<p>Contexts represent rows. Some constraints are applied to the rows. The context is responsible for the seats. The seats are associated with the rows.</p>
+<h2 id="sample-application-4-booking-system-for-seats-in-a-stadium"><a class="header" href="#sample-application-4-booking-system-for-seats-in-a-stadium">Sample application 4. Booking system for seats in a stadium</a></h2>
+<p>The same as application 2 but where rows are aggregates (so I can have any number of instances of seat rows). The application uses the SAFE stack based template.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="entities"><a class="header" href="#entities">Entities</a></h1>
 <p>I can represent entities as records. They need a unique identifier (ID). 
 I can reference other entities by their Ids.</p>
@@ -190,10 +193,9 @@ then we need to share the definition of the entities between the client and the 
 (Shared project)</p>
 <p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample.Shared/Entities.fs">TodosModel.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="context"><a class="header" href="#context">Context</a></h1>
-<p>A context is just a group of collections of entities.
-Roughly speaking, a context is a group of entities that are related to each. We may use the adjective &quot;bounded&quot; to describe a context.
-Context will be associated with streams of events.
-We can get the state of any cluster by processing the stored events using the <em>evolve</em> function.  <em>events</em> are closely related to members of the cluster that end up in Update/Delete/Remove of some entity (even though there is no actual change because we are using immutable data structures).</p>
+<p>A context is a class meant to be event-sourced, i.e. associated with a stream of events.
+To buld the state of a context using stored events we use the <em>evolve</em> function.</p>
+<p><em>events</em> are associated to members of the cluster that end up in Update/Delete/Remove of some entity</p>
 <p>Static members that are mandatory for any cluster of entities are:</p>
 <ul>
 <li>
@@ -203,13 +205,13 @@ We can get the state of any cluster by processing the stored events using the <e
 <p><strong>StorageName</strong> and  <strong>Version</strong>: this combination uniquely identifies the cluster and lets the storage know in which stream to store events and snapshots. Whatever will be the storage (memory, Postgres, EventstoreDb, etc.) the cluster will be stored in a stream named as the concatenation of the <em>StorageName</em> and the <em>Version</em> (i.e. &quot;_todo_01&quot;)</p>
 </li>
 <li>
-<p><strong>Lock</strong>: a lock object is used to protect the cluster from concurrent access (will be used by the Command handler if the PessimisticLock is set to true in config).</p>
+<p><strong>Lock</strong>: a lock object is used to protect the cluster from concurrent access (will be used by the Command handler if we want to use the pessimistic lock, not recommended b.t.w)</p>
 </li>
 <li>
-<p><strong>SnapshotsInterval</strong>: the number of events that can be stored after a snapshot before creating a new snapshot (i.e. the number of events between snapshots)</p>
+<p><strong>SnapshotsInterval</strong>: the number of events that can be stored after a snapshot before creating a new snapshot (i.e. the number of events between snapshots).</p>
 </li>
 </ul>
-<p>The Command handler, by the runCommand function, applies a command, then stores the related events and returns the EventStore (database) Ids of those stored events and the KafkaDeliveryResult (if Kafka broker is enabled).</p>
+<p>The Command handler, by the runCommand function, applies a command, then stores the related events and returns the EventStore (database) IDs of those stored events and the KafkaDeliveryResult (if Kafka broker is enabled).</p>
 <p>Example of a cluster of entities handling the todos and the categories:</p>
 <pre><code class="language-FSharp">    type TodosCluster =
         {
@@ -255,7 +257,7 @@ It uses the &quot;result&quot; computational expression included in the FsToolki
 <pre><code class="language-FSharp">    type Event&lt;'A&gt; =
         abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
 </code></pre>
-<p>The <em>'A</em> is the generic cluster type the event is associated with.</p>
+<p>The <em>'A</em> is the generic context or aggregate type, the event is associated with.</p>
 <p>This is an example of a concrete implementation of an event related to the TodoCluster members <em>Add</em> and <em>Remove</em>.</p>
 <p>So, for example, the <em>TodoAdded</em> event is associated with the <em>AddTodo</em> member.
 The <em>Process</em> member of the event is implemented by calling the related clusters member.</p>
@@ -273,7 +275,7 @@ The <em>Process</em> member of the event is implemented by calling the related c
 </code></pre>
 <p>Source code:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Todos/Events.fs">Events.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
-<p>A Command type is a Discriminated Union. Executing the command on a specific cluster means returning a proper list of events or an error.
+<p>A Command type is a Discriminated Union. Executing the command on a specific cluster or aggregate means returning a proper list of events or an error.
 You can also specify <em>&quot;command undoers&quot;</em>, that allow you to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the related command.
 For example, the &quot;under&quot; of AddTodo is the related RemoveTodo (see next paragraph).</p>
 <pre><code class="language-FSharp">
@@ -322,9 +324,10 @@ For example, the &quot;under&quot; of AddTodo is the related RemoveTodo (see nex
             member this.Undoer
 
 </code></pre>
-<p>Any command must ensure that it will return Result.Ok (and therefore, one or more events) only if the events to be returned, when processed on the current state, return an Ok result, i.e. a valid state (and no error). </p>
+<p>Any command must ensure that it will return Result.OK (and therefore, one or more events) only if the events to be returned, when processed on the current state, return an Ok result, i.e. a valid state (and no error). </p>
 <p>The <em>evolve</em> tolerates inconsistent events.
-Thus the <em>evolve</em> will just skip events that, when processed, return an error.</p>
+Thus the <em>evolve</em> will just skip events that, when processed, return an error.
+This feature is associated with a specific permissive optimistic lock type that we will see later.</p>
 <h2 id="undoer"><a class="header" href="#undoer">Undoer</a></h2>
 <p>A command case may have associated an <em>undoer</em> which is similar to a command itself and is aimed to eventually do the &quot;reverse&quot; of that command case.
 We need the <em>undoer</em> only if the storage we use lacks support for multiple stream transactions (like EventStoreDb).
@@ -338,6 +341,7 @@ Otherwise, we need to define an <em>undoer</em> if we know we are going to pass 
         abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
         abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
 </code></pre>
+<p>(note: this feature should be useful in conjunction with EventStoreDb. However I haven't gone so far in supporting EventStoreDb yet)</p>
 <p>The &quot;command undoer&quot; returns a function that, applied to the state, must return the actual <em>undoer</em>.</p>
 <p>So the undoers work in two shots: one to build a context for the eventual future undo, and one to actually... <em>do</em> the <em>undo</em>. </p>
 <p><strong>Example of &quot;undoer&quot;</strong> :</p>

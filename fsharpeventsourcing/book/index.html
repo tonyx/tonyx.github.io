@@ -147,7 +147,7 @@
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
 <p><a href="https://github.com/tonyx/Micro_ES_FSharp_Lib">Sharpino</a> is a little F# event sourcing framework.
 <em>Contexts</em>:  Objects that can be event sourced. Only one instance of a context can exist at a time.
-<em>Aggregates</em>: Object that can be event sourced. Many instances of an aggregate can exist at a time.</p>
+<em>Aggregates</em>: Objects that can be event sourced. Many instances of an aggregate can exist at a time.</p>
 <p>Contexts and aggregates need to define members that do Add/Remove/Update operations functionally and by using Result type to handle errors.</p>
 <p>Contexts and aggregates need event types associated with Add/Remove/Update operations.
 Event types need associated commands
@@ -163,7 +163,7 @@ I'll show how we can handle two versions of the same application that use differ
 <h2 id="sample-application-2-booking-system-for-seats-in-a-stadium"><a class="header" href="#sample-application-2-booking-system-for-seats-in-a-stadium">Sample application 2. Booking system for seats in a stadium</a></h2>
 <p>Contexts represent rows. Some constraints are applied to the rows. The context is responsible for the seats. The seats are associated with the rows.</p>
 <h2 id="sample-application-4-booking-system-for-seats-in-a-stadium"><a class="header" href="#sample-application-4-booking-system-for-seats-in-a-stadium">Sample application 4. Booking system for seats in a stadium</a></h2>
-<p>The same as the application 2 but where rows are aggregates (so I can have any number of instances of seat rows). The application uses the SAFE stack based template.</p>
+<p>The same as application 2 but where rows are aggregates (so I can have any number of instances of seat rows). The application uses the SAFE stack based template.</p>
 
                     </main>
 
