@@ -1,4 +1,6 @@
 # Apache Kafka
+__the apache Kafka development is still in progress__
+
 We can use Apache Kafka to notify events after storing them.
 The style is the outbox pattern (without db).
 Examples of usage are [here](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/AppVersions.fs).
