@@ -145,15 +145,30 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
+<p>(this section needs an update as we have a new )</p>
 <p>A Command type is a Discriminated Union. Executing the command on a specific cluster or aggregate means returning a proper list of events or an error.
 You can also specify <em>&quot;command undoers&quot;</em>, that allow you to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the related command.
 For example, the &quot;under&quot; of AddTodo is the related RemoveTodo (see next paragraph).</p>
+<p>In the following code we can see the signature for any state viewers for any context or aggregate. State viewer corresponds to read models: they will provide the current state of aggregate or context. Typically, that state may come from a cache, from the event store (by processing the events) or from a topic of Kafa (or eventually any other message/event broker, even though I haven't implemented completed any of them yet).</p>
 <pre><code class="language-FSharp">
-    type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
+    type StateViewer&lt;'A&gt; = unit -&gt; Result&lt;EventId * 'A, string&gt;
+    type AggregateViewer&lt;'A&gt; = Guid -&gt; Result&lt;EventId * 'A,string&gt;
+    
+    type Aggregate&lt;'F&gt; =
+        abstract member Id: Guid // use this one to be able to filter related events from same string
+        abstract member Serialize: 'F
+    
+    type Event&lt;'A&gt; =
+        abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
 
     type Command&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
-        abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
-        abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
+        abstract member Execute: 'A -&gt; Result&lt;'A * List&lt;'E&gt;, string&gt;
+        abstract member Undoer: Option&lt;'A -&gt; StateViewer&lt;'A&gt; -&gt; Result&lt;unit -&gt; Result&lt;List&lt;'E&gt;, string&gt;, string&gt;&gt;
+        
+    type AggregateCommand&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
+        abstract member Execute: 'A -&gt; Result&lt;'A * List&lt;'E&gt;, string&gt;
+        abstract member Undoer: Option&lt;'A -&gt; AggregateViewer&lt;'A&gt; -&gt; Result&lt;unit -&gt; Result&lt;List&lt;'E&gt;, string&gt;, string&gt;&gt;
+
 
 </code></pre>
 <p>Example:</p>
@@ -199,59 +214,71 @@ For example, the &quot;under&quot; of AddTodo is the related RemoveTodo (see nex
 Thus the <em>evolve</em> will just skip events that, when processed, return an error.
 This feature is associated with a specific permissive optimistic lock type that we will see later.</p>
 <h2 id="undoer"><a class="header" href="#undoer">Undoer</a></h2>
-<p>A command case may have associated an <em>undoer</em> which is similar to a command itself and is aimed to eventually do the &quot;reverse&quot; of that command case.
-We need the <em>undoer</em> only if the storage we use lacks support for multiple stream transactions (like EventStoreDb).
-(Note: I may not support EventStoreDb in the future. I probably will just stick to the Postgres Db as event-store and Apache Kafka as event-broker.)</p>
-<pre><code class="language-FSharp">    type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
+<p>The use of the lambda expression is a nice trick for the undoers (the <em>under</em> is returned as a lambda that retrieves the context for applying the undo and returns another lambda that actually can &quot;undo&quot; the command).</p>
+<p>I haven't simplified any example of undoer yet, but this is the idea related to commands for adding and removing items </p>
+<pre><code class="language-fsharp">module CartCommands =
+    type CartCommands =
+    | AddGood of Guid * int
+    | RemoveGood of Guid
+        interface AggregateCommand&lt;Cart, CartEvents&gt; with
+            member this.Execute (cart: Cart) =
+                match this with
+                | AddGood (goodRef, quantity) -&gt; 
+                    cart.AddGood (goodRef, quantity)
+                    |&gt; Result.map (fun s -&gt; (s, [GoodAdded (goodRef, quantity)]))
+                | RemoveGood goodRef -&gt;
+                    cart.RemoveGood goodRef
+                    |&gt; Result.map (fun s -&gt; (s, [GoodRemoved goodRef]))
+            member this.Undoer = 
+                match this with
+                | AddGood (goodRef, _) -&gt; 
+                    Some 
+                        (fun (cart: Cart) (viewer: AggregateViewer&lt;Cart&gt;) -&gt;
+                            result {
+                                let! (i, _) = viewer (cart.Id) 
+                                return
+                                    fun () -&gt;
+                                        result {
+                                            let! (j, state) = viewer (cart.Id)
+                                            let! isGreater = 
+                                                (j &gt;= i)
+                                                |&gt; Result.ofBool (sprintf &quot;execution undo state '%d' must be after the undo command state '%d'&quot; j i)
+                                            let result =
+                                                state.RemoveGood goodRef
+                                                |&gt; Result.map (fun _ -&gt; [GoodRemoved goodRef])
+                                            return! result
+                                        }
+                                }
+                        )
+                | RemoveGood goodRef -&gt;
+                    Some
+                        (fun (cart: Cart) (viewer: AggregateViewer&lt;Cart&gt;) -&gt;
+                            result {
+                                let! (i, state) = viewer (cart.Id) 
+                                let! goodQuantity = state.GetGoodAndQuantity goodRef
+                                return
+                                    fun () -&gt;
+                                        result {
+                                            let! (j, state) = viewer (cart.Id)
+                                            let! isGreater = 
+                                                // this check depends also on the number of events generated by the command (i.e. the j &gt;= (i+1) if command generates 2 event)
+                                                (j &gt;= i)
+                                                |&gt; Result.ofBool (sprintf &quot;execution undo state '%d' must be after the undo command state '%d'&quot; j i)
+                                            let result =
+                                                state.AddGood (goodRef, goodQuantity)
+                                                |&gt; Result.map (fun _ -&gt; [GoodAdded (goodRef, goodQuantity)])
+                                            return! result
+                                        }
+                                }
+                        )
 </code></pre>
-<p>When we use storages like <em>in memory</em> or <em>Postgres</em>, we don't need to define any <em>undoer</em> for our commands, because those storages support multiple stream transactions.
-Otherwise, we need to define an <em>undoer</em> if we know we are going to pass them to <em>runTwoCommands</em> on the command handler.</p>
-<p>The abstract definition of a command is:</p>
-<pre><code class="language-FSharp">    type Command&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
-        abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
-        abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
+<p>Probably to follow the example its worth reading again the definition of an undoer:</p>
+<pre><code class="language-FSharp">        abstract member Undoer: Option&lt;'A -&gt; AggregateViewer&lt;'A&gt; -&gt; Result&lt;unit -&gt; Result&lt;List&lt;'E&gt;, string&gt;, string&gt;&gt;
 </code></pre>
-<p>(note: this feature should be useful in conjunction with EventStoreDb. However I haven't gone so far in supporting EventStoreDb yet)</p>
-<p>The &quot;command undoer&quot; returns a function that, applied to the state, must return the actual <em>undoer</em>.</p>
-<p>So the undoers work in two shots: one to build a context for the eventual future undo, and one to actually... <em>do</em> the <em>undo</em>. </p>
-<p><strong>Example of &quot;undoer&quot;</strong> :</p>
-<p>The <em>RemoveTag</em> command returns a list of TagRemoved events. We know that when those events are processed the result is the new cluster state without the tags.
-However, we may want to roll back the effect of those events by adding events that reverse their effect.</p>
-<p>This applies to a transaction context: you need to be able to re-add the tag to the state. For this reason, you need to build a context <em>before</em> the removal so that the tag to be eventually readded is still available.</p>
-<p>From the code with some comments:</p>
-<pre><code class="language-Fsharp">    member this.Undoer = 
-        match this with
-        | RemoveTag g -&gt; 
-            // block to be executed before the actual command removing tag 
-            // is executed. It will return another function with the context needed (the tag itself)
-            (fun (x: TagsContext) -&gt;
-                result {
-                    let! tag = x.GetTag g
-                    let result =
-
-                        // block to be executed after the actual command removing tag is executed.  
-                        // It will return the list of events to be applied to the cluster state to compensate the effect of the command. 
-                        // Note that the tag is the context needed to readd the tag to the  state.
-
-                        fun (x': TagsContext) -&gt;
-                            x'.AddTag tag 
-                            |&gt; Result.map (fun _ -&gt; [TagAdded tag])
-                    return result
-                }
-            )
-            |&gt; Some
-        | AddTag t -&gt;
-            // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. 
-            // The context is the tag itself (particularly its id), that can't be lost during the transaction.
-            (fun (_: TagsContext) -&gt;
-                fun (x': TagsContext) -&gt;
-                    x'.RemoveTag t.Id 
-                    |&gt; Result.map (fun _ -&gt; [TagAdded t])
-                |&gt; Ok
-            )
-            |&gt; Some
-
-</code></pre>
+<p>This can be simplified as the state of the aggregate is accessed in different ways, however this is the meaning:</p>
+<p>Extract from the current state of the aggregate useful info for a future &quot;rollback&quot;/&quot;undo&quot; and return a function that, when applied to the current state of the aggregate, will return the events that will &quot;undo&quot; the effect of the command.</p>
+<p>Saga like transaction handling will probably need this logic.
+However, most of the time the commands between multiple aggregates uses db transactions (like Postgres) and the undoer is not needed.</p>
 <p><a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Tags/Commands.fs">Commands.fs</a></p>
 
                     </main>

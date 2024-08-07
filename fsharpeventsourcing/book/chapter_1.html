@@ -145,8 +145,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="entities"><a class="header" href="#entities">Entities</a></h1>
-<p>I can represent entities as records. They need a unique identifier (ID). 
-I can reference other entities by their Ids.</p>
+<p>I am representing in this example the Todo entity and a Todo context</p>
 <p>This is the Todo entity definition:</p>
 <pre><code class="language-FSharp">    type Todo =
         {
@@ -165,6 +164,7 @@ I can reference other entities by their Ids.</p>
                     todos = []
                 }
 </code></pre>
+<p>The Todos context needs also some other members (to handle the stream name, the serialize/deserialize functions, and the snapshots interval...)</p>
 <p>The Context will define a <em>Zero</em> static member (initial state).
 In case we use 
 <a href="https://github.com/Zaid-Ajaj/Fable.Remoting">Fable remoting</a>)

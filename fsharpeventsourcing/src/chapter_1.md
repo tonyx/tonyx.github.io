@@ -1,7 +1,6 @@
 # Entities
 
-I can represent entities as records. They need a unique identifier (ID). 
-I can reference other entities by their Ids.
+I am representing in this example the Todo entity and a Todo context
 
 This is the Todo entity definition:
 
@@ -23,6 +22,8 @@ This is the Todo entity definition:
                     todos = []
                 }
 ```
+
+The Todos context needs also some other members (to handle the stream name, the serialize/deserialize functions, and the snapshots interval...)
 
 The Context will define a _Zero_ static member (initial state).
 In case we use 

@@ -8,7 +8,6 @@ To buld the state of a context using stored events we use the _evolve_ function.
 Static members that are mandatory for any cluster of entities are:
 - __Zero__: the initial state (no events yet).
 - __StorageName__ and  __Version__: this combination uniquely identifies the cluster and lets the storage know in which stream to store events and snapshots. Whatever will be the storage (memory, Postgres, EventstoreDb, etc.) the cluster will be stored in a stream named as the concatenation of the _StorageName_ and the _Version_ (i.e. "_todo_01")
-- __Lock__: a lock object is used to protect the cluster from concurrent access (will be used by the Command handler if we want to use the pessimistic lock, not recommended b.t.w)
 
 - __SnapshotsInterval__: the number of events that can be stored after a snapshot before creating a new snapshot (i.e. the number of events between snapshots).
 

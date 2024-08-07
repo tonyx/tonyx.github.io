@@ -147,27 +147,30 @@
                     <main>
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
 <p><a href="https://github.com/tonyx/Micro_ES_FSharp_Lib">Sharpino</a> is a little F# event sourcing framework.
-<em>Contexts</em>:  Objects that can be event sourced. Only one instance of a context can exist at a time.
-<em>Aggregates</em>: Objects that can be event sourced. Many instances of an aggregate can exist at a time.</p>
-<p>Contexts and aggregates need to define members that do Add/Remove/Update operations functionally and by using Result type to handle errors.</p>
-<p>Contexts and aggregates need event types associated with Add/Remove/Update operations.
+<em>Contexts</em>:  Objects that can be event sourced. There is no specific id for a context so we just assume that a single instance and a single zero (initial state) instance exist for any <em>Context</em>.
+<em>Aggregates</em>: Objects that can be event sourced. Many instances of an aggregate can exist at a time so we need an Id for each instance represented by a Guid. The initial state for any aggregate will end up in an initial snapshot in the event store.</p>
+<p>Contexts and aggregates need to define members that do Add/Remove/Update operations functionally and by using Result type to handle errors. We tipically use Railway oriented programming is used to handle errors in any Add/Remove/Update operation (by the FsTookit.ErrorHandling library).</p>
+<p>Contexts and aggregates need to specify event types associated with Add/Remove/Update operations. 
 Event types need associated commands
-Commands and events must be Discriminated Union types.</p>
+Commands and events must be Discriminated Union types implementing the <em>Command</em> and the <em>Event</em> interfaces respectively.</p>
 <p>This document is a guide to the Sharpino library. It is a work in progress.
 Focus on the following topics:
-entities, contexts, events, commands, service application layer, Event Store.</p>
+Contexts, events, commands, service application layer, Event Store.</p>
 <h2 id="the-sample-application-1"><a class="header" href="#the-sample-application-1">The sample application 1.</a></h2>
-<p>A Todo list manager. Each todo contains references to Tags and Categories.
-I'll show how we can handle two versions of the same application that use different cluster configurations. This will help to talk about the cluster refactoring.</p>
-<p>The &quot;version 1&quot; has a context managing Todo and Categories, and another cluster managing Tags.</p>
-<p>The &quot;version 2&quot; of the application consists of three different clusters: one for the Todo model, one for the Categories model, and another one for the Tags model.</p>
+<p>This sample is convoluted and represent unlikely situations like having complex relations and interactions between different aggregates/contexts. I would suggest to 
+skip this part. I'd say the interesting proposal in this example is about the refactoring technique: how to move from a specific distribution of concerns between contexts/aggregate to another distribution.
+How to test the migration of the context/aggregate.
+The idea is to create a new version of context/aggregate and at the same time build a migration function.</p>
+<p>Each todo contains references to Tags and Categories.
+I'll show how we can handle two versions of the same application that use different cluster configurations. This will help to talk about the context refactoring.</p>
+<p>The &quot;version 1&quot; has a context managing Todo and Categories, and another context managing Tags.</p>
+<p>The &quot;version 2&quot; of the application consists of three different contexts: one for the Todo model, one for the Categories model, and another one for the Tags model.</p>
 <h2 id="sample-application-2-booking-system-for-seats-in-a-stadium"><a class="header" href="#sample-application-2-booking-system-for-seats-in-a-stadium">Sample application 2. Booking system for seats in a stadium</a></h2>
 <p>Contexts represent rows. Some constraints are applied to the rows. The context is responsible for the seats. The seats are associated with the rows.</p>
 <h2 id="sample-application-4-booking-system-for-seats-in-a-stadium"><a class="header" href="#sample-application-4-booking-system-for-seats-in-a-stadium">Sample application 4. Booking system for seats in a stadium</a></h2>
-<p>The same as application 2 but where rows are aggregates (so I can have any number of instances of seat rows). The application uses the SAFE stack based template.</p>
+<p>The same as application 2 but where rows are aggregates (so I can have any number of instances of seat rows). The application uses the SAFE based stack based template son can publish the system as a rest service using the Fable Remoting library.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="entities"><a class="header" href="#entities">Entities</a></h1>
-<p>I can represent entities as records. They need a unique identifier (ID). 
-I can reference other entities by their Ids.</p>
+<p>I am representing in this example the Todo entity and a Todo context</p>
 <p>This is the Todo entity definition:</p>
 <pre><code class="language-FSharp">    type Todo =
         {
@@ -186,6 +189,7 @@ I can reference other entities by their Ids.</p>
                     todos = []
                 }
 </code></pre>
+<p>The Todos context needs also some other members (to handle the stream name, the serialize/deserialize functions, and the snapshots interval...)</p>
 <p>The Context will define a <em>Zero</em> static member (initial state).
 In case we use 
 <a href="https://github.com/Zaid-Ajaj/Fable.Remoting">Fable remoting</a>)
@@ -203,9 +207,6 @@ To buld the state of a context using stored events we use the <em>evolve</em> fu
 </li>
 <li>
 <p><strong>StorageName</strong> and  <strong>Version</strong>: this combination uniquely identifies the cluster and lets the storage know in which stream to store events and snapshots. Whatever will be the storage (memory, Postgres, EventstoreDb, etc.) the cluster will be stored in a stream named as the concatenation of the <em>StorageName</em> and the <em>Version</em> (i.e. &quot;_todo_01&quot;)</p>
-</li>
-<li>
-<p><strong>Lock</strong>: a lock object is used to protect the cluster from concurrent access (will be used by the Command handler if we want to use the pessimistic lock, not recommended b.t.w)</p>
 </li>
 <li>
 <p><strong>SnapshotsInterval</strong>: the number of events that can be stored after a snapshot before creating a new snapshot (i.e. the number of events between snapshots).</p>
@@ -275,15 +276,30 @@ The <em>Process</em> member of the event is implemented by calling the related c
 </code></pre>
 <p>Source code:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Todos/Events.fs">Events.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
+<p>(this section needs an update as we have a new )</p>
 <p>A Command type is a Discriminated Union. Executing the command on a specific cluster or aggregate means returning a proper list of events or an error.
 You can also specify <em>&quot;command undoers&quot;</em>, that allow you to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the related command.
 For example, the &quot;under&quot; of AddTodo is the related RemoveTodo (see next paragraph).</p>
+<p>In the following code we can see the signature for any state viewers for any context or aggregate. State viewer corresponds to read models: they will provide the current state of aggregate or context. Typically, that state may come from a cache, from the event store (by processing the events) or from a topic of Kafa (or eventually any other message/event broker, even though I haven't implemented completed any of them yet).</p>
 <pre><code class="language-FSharp">
-    type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
+    type StateViewer&lt;'A&gt; = unit -&gt; Result&lt;EventId * 'A, string&gt;
+    type AggregateViewer&lt;'A&gt; = Guid -&gt; Result&lt;EventId * 'A,string&gt;
+    
+    type Aggregate&lt;'F&gt; =
+        abstract member Id: Guid // use this one to be able to filter related events from same string
+        abstract member Serialize: 'F
+    
+    type Event&lt;'A&gt; =
+        abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
 
     type Command&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
-        abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
-        abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
+        abstract member Execute: 'A -&gt; Result&lt;'A * List&lt;'E&gt;, string&gt;
+        abstract member Undoer: Option&lt;'A -&gt; StateViewer&lt;'A&gt; -&gt; Result&lt;unit -&gt; Result&lt;List&lt;'E&gt;, string&gt;, string&gt;&gt;
+        
+    type AggregateCommand&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
+        abstract member Execute: 'A -&gt; Result&lt;'A * List&lt;'E&gt;, string&gt;
+        abstract member Undoer: Option&lt;'A -&gt; AggregateViewer&lt;'A&gt; -&gt; Result&lt;unit -&gt; Result&lt;List&lt;'E&gt;, string&gt;, string&gt;&gt;
+
 
 </code></pre>
 <p>Example:</p>
@@ -329,59 +345,71 @@ For example, the &quot;under&quot; of AddTodo is the related RemoveTodo (see nex
 Thus the <em>evolve</em> will just skip events that, when processed, return an error.
 This feature is associated with a specific permissive optimistic lock type that we will see later.</p>
 <h2 id="undoer"><a class="header" href="#undoer">Undoer</a></h2>
-<p>A command case may have associated an <em>undoer</em> which is similar to a command itself and is aimed to eventually do the &quot;reverse&quot; of that command case.
-We need the <em>undoer</em> only if the storage we use lacks support for multiple stream transactions (like EventStoreDb).
-(Note: I may not support EventStoreDb in the future. I probably will just stick to the Postgres Db as event-store and Apache Kafka as event-broker.)</p>
-<pre><code class="language-FSharp">    type Undoer&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; = 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
+<p>The use of the lambda expression is a nice trick for the undoers (the <em>under</em> is returned as a lambda that retrieves the context for applying the undo and returns another lambda that actually can &quot;undo&quot; the command).</p>
+<p>I haven't simplified any example of undoer yet, but this is the idea related to commands for adding and removing items </p>
+<pre><code class="language-fsharp">module CartCommands =
+    type CartCommands =
+    | AddGood of Guid * int
+    | RemoveGood of Guid
+        interface AggregateCommand&lt;Cart, CartEvents&gt; with
+            member this.Execute (cart: Cart) =
+                match this with
+                | AddGood (goodRef, quantity) -&gt; 
+                    cart.AddGood (goodRef, quantity)
+                    |&gt; Result.map (fun s -&gt; (s, [GoodAdded (goodRef, quantity)]))
+                | RemoveGood goodRef -&gt;
+                    cart.RemoveGood goodRef
+                    |&gt; Result.map (fun s -&gt; (s, [GoodRemoved goodRef]))
+            member this.Undoer = 
+                match this with
+                | AddGood (goodRef, _) -&gt; 
+                    Some 
+                        (fun (cart: Cart) (viewer: AggregateViewer&lt;Cart&gt;) -&gt;
+                            result {
+                                let! (i, _) = viewer (cart.Id) 
+                                return
+                                    fun () -&gt;
+                                        result {
+                                            let! (j, state) = viewer (cart.Id)
+                                            let! isGreater = 
+                                                (j &gt;= i)
+                                                |&gt; Result.ofBool (sprintf &quot;execution undo state '%d' must be after the undo command state '%d'&quot; j i)
+                                            let result =
+                                                state.RemoveGood goodRef
+                                                |&gt; Result.map (fun _ -&gt; [GoodRemoved goodRef])
+                                            return! result
+                                        }
+                                }
+                        )
+                | RemoveGood goodRef -&gt;
+                    Some
+                        (fun (cart: Cart) (viewer: AggregateViewer&lt;Cart&gt;) -&gt;
+                            result {
+                                let! (i, state) = viewer (cart.Id) 
+                                let! goodQuantity = state.GetGoodAndQuantity goodRef
+                                return
+                                    fun () -&gt;
+                                        result {
+                                            let! (j, state) = viewer (cart.Id)
+                                            let! isGreater = 
+                                                // this check depends also on the number of events generated by the command (i.e. the j &gt;= (i+1) if command generates 2 event)
+                                                (j &gt;= i)
+                                                |&gt; Result.ofBool (sprintf &quot;execution undo state '%d' must be after the undo command state '%d'&quot; j i)
+                                            let result =
+                                                state.AddGood (goodRef, goodQuantity)
+                                                |&gt; Result.map (fun _ -&gt; [GoodAdded (goodRef, goodQuantity)])
+                                            return! result
+                                        }
+                                }
+                        )
 </code></pre>
-<p>When we use storages like <em>in memory</em> or <em>Postgres</em>, we don't need to define any <em>undoer</em> for our commands, because those storages support multiple stream transactions.
-Otherwise, we need to define an <em>undoer</em> if we know we are going to pass them to <em>runTwoCommands</em> on the command handler.</p>
-<p>The abstract definition of a command is:</p>
-<pre><code class="language-FSharp">    type Command&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
-        abstract member Execute: 'A -&gt; Result&lt;List&lt;'E&gt;, string&gt;
-        abstract member Undoer: Option&lt;'A -&gt; Result&lt;Undoer&lt;'A, 'E&gt;, string&gt;&gt;
+<p>Probably to follow the example its worth reading again the definition of an undoer:</p>
+<pre><code class="language-FSharp">        abstract member Undoer: Option&lt;'A -&gt; AggregateViewer&lt;'A&gt; -&gt; Result&lt;unit -&gt; Result&lt;List&lt;'E&gt;, string&gt;, string&gt;&gt;
 </code></pre>
-<p>(note: this feature should be useful in conjunction with EventStoreDb. However I haven't gone so far in supporting EventStoreDb yet)</p>
-<p>The &quot;command undoer&quot; returns a function that, applied to the state, must return the actual <em>undoer</em>.</p>
-<p>So the undoers work in two shots: one to build a context for the eventual future undo, and one to actually... <em>do</em> the <em>undo</em>. </p>
-<p><strong>Example of &quot;undoer&quot;</strong> :</p>
-<p>The <em>RemoveTag</em> command returns a list of TagRemoved events. We know that when those events are processed the result is the new cluster state without the tags.
-However, we may want to roll back the effect of those events by adding events that reverse their effect.</p>
-<p>This applies to a transaction context: you need to be able to re-add the tag to the state. For this reason, you need to build a context <em>before</em> the removal so that the tag to be eventually readded is still available.</p>
-<p>From the code with some comments:</p>
-<pre><code class="language-Fsharp">    member this.Undoer = 
-        match this with
-        | RemoveTag g -&gt; 
-            // block to be executed before the actual command removing tag 
-            // is executed. It will return another function with the context needed (the tag itself)
-            (fun (x: TagsContext) -&gt;
-                result {
-                    let! tag = x.GetTag g
-                    let result =
-
-                        // block to be executed after the actual command removing tag is executed.  
-                        // It will return the list of events to be applied to the cluster state to compensate the effect of the command. 
-                        // Note that the tag is the context needed to readd the tag to the  state.
-
-                        fun (x': TagsContext) -&gt;
-                            x'.AddTag tag 
-                            |&gt; Result.map (fun _ -&gt; [TagAdded tag])
-                    return result
-                }
-            )
-            |&gt; Some
-        | AddTag t -&gt;
-            // this case is simple than the previous because there is no need to retrieve anything from the context before the command is executed. 
-            // The context is the tag itself (particularly its id), that can't be lost during the transaction.
-            (fun (_: TagsContext) -&gt;
-                fun (x': TagsContext) -&gt;
-                    x'.RemoveTag t.Id 
-                    |&gt; Result.map (fun _ -&gt; [TagAdded t])
-                |&gt; Ok
-            )
-            |&gt; Some
-
-</code></pre>
+<p>This can be simplified as the state of the aggregate is accessed in different ways, however this is the meaning:</p>
+<p>Extract from the current state of the aggregate useful info for a future &quot;rollback&quot;/&quot;undo&quot; and return a function that, when applied to the current state of the aggregate, will return the events that will &quot;undo&quot; the effect of the command.</p>
+<p>Saga like transaction handling will probably need this logic.
+However, most of the time the commands between multiple aggregates uses db transactions (like Postgres) and the undoer is not needed.</p>
 <p><a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Tags/Commands.fs">Commands.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
 <p>An application service layer implements multiple context logic.
@@ -526,10 +554,15 @@ A structure of a parametric test that considers various possible combinations of
 <p>The above code enables only the tests of the current version of the app that uses the in-memory storage.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="apache-kafka"><a class="header" href="#apache-kafka">Apache Kafka</a></h1>
 <p>We can use Apache Kafka to notify events after storing them.
-The style is the outbox pattern.
+The style is the outbox pattern (without db).
 Examples of usage are <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/AppVersions.fs">here</a>.
 Some tests are instrumented to eventually listen to Apache Kafka, see <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample.Test/MultiVersionsTests.fs">here</a>.
-Any &quot;view&quot; node may build its own view of the cluster state by listening to the events.</p>
+Any &quot;view&quot; node may build its own view of the cluster state by listening to the events.
+KafkaStateViewer and KafkaAggregateStateViewer are able to build the current state by subscribing events on specific topics and specific partitions of topics.</p>
+<p>Command handler is able to use read models given by KafkaStateViewer.
+Kafka based state viewer will be able to detect anomaly by checking the progressive id of any event.
+In case of such anomaly the state viewer will be able to access to the event store to build the state.</p>
+<p>This part is still under development to be optmized.</p>
 
                     </main>
 
