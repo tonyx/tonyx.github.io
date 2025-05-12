@@ -24,29 +24,6 @@ A structure of a parametric test that considers various possible combinations of
 
 ```
 
-In some cases, you just want to run your tests fast and you don't want to test everything against all the possible combinations of application versions.
-
-Then you may just skip some of the versions set up in the "version" triples __(initversion, endversion, migrator)__ by commenting out temporarily the ones you don't want to spend time to test at the moment:
-
-```FSharp
-let allVersions =
-    [
-
-        // (AppVersions.currentPostgresApp,        AppVersions.currentPostgresApp,     fun () -> () |> Result.Ok)
-        // (AppVersions.upgradedPostgresApp,       AppVersions.upgradedPostgresApp,    fun () -> () |> Result.Ok)
-        // (AppVersions.currentPostgresApp,        AppVersions.upgradedPostgresApp,    AppVersions.currentPostgresApp._migrator.Value)
-
-        (AppVersions.currentMemoryApp,          AppVersions.currentMemoryApp,       fun () -> () |> Result.Ok)
-        // (AppVersions.upgradedMemoryApp,         AppVersions.upgradedMemoryApp,      fun () -> () |> Result.Ok)
-        // (AppVersions.currentMemoryApp,          AppVersions.upgradedMemoryApp,      AppVersions.currentMemoryApp._migrator.Value)
-
-        // (AppVersions.evSApp,                    AppVersions.evSApp,                 fun () -> () |> Result.Ok)
-    ]
-
-```
-
-The above code enables only the tests of the current version of the app that uses the in-memory storage.
-
 
 
 

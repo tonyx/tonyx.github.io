@@ -165,24 +165,6 @@ A structure of a parametric test that considers various possible combinations of
             // test something on apUpgd, which is the &quot;upgraded version&quot; of the application
 
 </code></pre>
-<p>In some cases, you just want to run your tests fast and you don't want to test everything against all the possible combinations of application versions.</p>
-<p>Then you may just skip some of the versions set up in the &quot;version&quot; triples <strong>(initversion, endversion, migrator)</strong> by commenting out temporarily the ones you don't want to spend time to test at the moment:</p>
-<pre><code class="language-FSharp">let allVersions =
-    [
-
-        // (AppVersions.currentPostgresApp,        AppVersions.currentPostgresApp,     fun () -&gt; () |&gt; Result.Ok)
-        // (AppVersions.upgradedPostgresApp,       AppVersions.upgradedPostgresApp,    fun () -&gt; () |&gt; Result.Ok)
-        // (AppVersions.currentPostgresApp,        AppVersions.upgradedPostgresApp,    AppVersions.currentPostgresApp._migrator.Value)
-
-        (AppVersions.currentMemoryApp,          AppVersions.currentMemoryApp,       fun () -&gt; () |&gt; Result.Ok)
-        // (AppVersions.upgradedMemoryApp,         AppVersions.upgradedMemoryApp,      fun () -&gt; () |&gt; Result.Ok)
-        // (AppVersions.currentMemoryApp,          AppVersions.upgradedMemoryApp,      AppVersions.currentMemoryApp._migrator.Value)
-
-        // (AppVersions.evSApp,                    AppVersions.evSApp,                 fun () -&gt; () |&gt; Result.Ok)
-    ]
-
-</code></pre>
-<p>The above code enables only the tests of the current version of the app that uses the in-memory storage.</p>
 
                     </main>
 

@@ -1,43 +1,12 @@
-# Refactoring strategy
+# Refactoring Aggregates
 
-By cluster refactoring, I mean when we just move models (collections of entities) among contexts.
+If you need to change an aggregate (or context) for new requirements we need to refactor the aggregate.
 
-Here I am showing a strategy for refactoring in terms of:  
-- moving the model's ownership between contexts, 
-- introducing new contexts 
-- upgrading old contexts.
-- dropping contexts.
+The technique is based on being able to create an aggregate that mimics the old one and an upcast function from the old one to the new one.
 
-The problem arises because it looks overcomplicated d to make upfront decisions about contexts. Consider that an application may start, for simplicity, with a single context and then, at a later stage, we may want to split it into multiple contexts.
+Beside this, you may do a bulk upcast of all the existing aggregates by making a snapthot of all of them.
+The new snapthot will use the new aggregate format so the definition of the old aggregate will be unnecessary after the bulk upcast and resnapshot.
 
-Refactoring leaves the application service layer behavior unchanged.
+You will create the shadow aggregate that mimic the old one in the same module of the current one, providing that the module is defined as rec. 
 
-The steps that may be followed are:
-- defining new contexts and eventually creating upgraded versions of current contexts
-- moving collection of entities from contexts to others.
-- creating an upgraded version of the application service layer using the new versions
-- applying the equivalent tests of the previous service layer to the new one.
-
-About this latest point, a parametric testing strategy is also possible.
-
-Here is an example of a list of tuples of multiple application version configurations with migration functions.
- 
-```FSharp
-let allVersions =
-    [
-        (applicationPostgresStorage,        applicationPostgresStorage,       fun () -> () |> Result.Ok)
-        (applicationShadowPostgresStorage,  applicationShadowPostgresStorage, fun () -> () |> Result.Ok)
-        (applicationPostgresStorage,        applicationShadowPostgresStorage, applicationPostgresStorage._migrator.Value)
-
-        (applicationMemoryStorage,          applicationMemoryStorage,         fun () -> () |> Result.Ok)
-        (applicationShadowMemoryStorage,    applicationShadowMemoryStorage,   fun () -> () |> Result.Ok)
-        (applicationMemoryStorage,          applicationShadowMemoryStorage,   applicationMemoryStorage._migrator.Value)
-    ]
-```
-
-There are specific attributes to distinguish current and "upgrading" versions of elements of the application. 
-
-A migration function is needed to extract data from the current version and store it in the upgraded version.
-
-Code here: [MultiVersionsTests.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample.Test/MultiVersionsTests.fs)
-
+The mechanism is based on handling the failure of the Deserialization by using as fallback the Deserialization using the old aggregate and then the upcast function to the new one.

@@ -15,7 +15,7 @@ The Command handler, by the runCommand function, applies a command, then stores 
 
 Example of a cluster of entities handling the todos and the categories:
 ```FSharp
-    type TodosCluster =
+    type Todos =
         {
             todos: Todos
             categories: Categories
@@ -31,6 +31,11 @@ Example of a cluster of entities handling the todos and the categories:
             "_01"
         static member SnapshotsInterval =
             15
+        static member Deserialize (s: string) =
+            jsonSerializer.Deserialize<Todos> s
+        member Serialize = 
+            this
+            |> jsonSerializer.Serialize
 ```
 
 In the following example, the TodosContext can check the validity of the categories referenced by any todo before adding it (to preserve the invariant rule that you can add only todo with valid category ID references).

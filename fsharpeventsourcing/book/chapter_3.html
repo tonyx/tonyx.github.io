@@ -145,7 +145,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="events"><a class="header" href="#events">Events</a></h1>
-<p>Events are discriminated unions (DU) with cases associated with members of the context that end up in <em>adding</em>/<em>updating</em>/<em>deleting</em>/ entities.</p>
+<p>Events are discriminated unions (DU) with cases associated with transformation members.</p>
 <p>When we process an event it returns a new state or an error: </p>
 <pre><code class="language-FSharp">    type Event&lt;'A&gt; =
         abstract member Process: 'A -&gt; Result&lt;'A, string&gt;

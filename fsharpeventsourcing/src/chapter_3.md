@@ -1,6 +1,6 @@
 # Events
 
-Events are discriminated unions (DU) with cases associated with members of the context that end up in _adding_/_updating_/_deleting_/ entities.
+Events are discriminated unions (DU) with cases associated with transformation members.
 
 When we process an event it returns a new state or an error: 
 

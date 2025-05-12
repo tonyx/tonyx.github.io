@@ -162,7 +162,7 @@ To buld the state of a context using stored events we use the <em>evolve</em> fu
 </ul>
 <p>The Command handler, by the runCommand function, applies a command, then stores the related events and returns the EventStore (database) IDs of those stored events and the KafkaDeliveryResult (if Kafka broker is enabled).</p>
 <p>Example of a cluster of entities handling the todos and the categories:</p>
-<pre><code class="language-FSharp">    type TodosCluster =
+<pre><code class="language-FSharp">    type Todos =
         {
             todos: Todos
             categories: Categories
@@ -178,6 +178,11 @@ To buld the state of a context using stored events we use the <em>evolve</em> fu
             &quot;_01&quot;
         static member SnapshotsInterval =
             15
+        static member Deserialize (s: string) =
+            jsonSerializer.Deserialize&lt;Todos&gt; s
+        member Serialize = 
+            this
+            |&gt; jsonSerializer.Serialize
 </code></pre>
 <p>In the following example, the TodosContext can check the validity of the categories referenced by any todo before adding it (to preserve the invariant rule that you can add only todo with valid category ID references).
 It uses the &quot;result&quot; computational expression included in the FsToolkit.ErrorHandling library which supports the <a href="https://fsharpforfunandprofit.com/rop/"><em>railway-oriented programming</em></a> pattern of handling errors.</p>

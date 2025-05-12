@@ -2,8 +2,8 @@
 
 (this section needs an update as we have a new )
 
-A Command type is a Discriminated Union. Executing the command on a specific cluster or aggregate means returning a proper list of events or an error.
-You can also specify _"command undoers"_, that allow you to compensate the effect of a command in case it is part of a multiple stream transaction that fails as we will see later. An undoer issues the events that can reverse the effect of the related command.
+A Command type is a Discriminated Union. Executing the command on a specific context or aggregate means returning a new state and, accordingly, a list of events, or an error.
+You can also specify _"command undoers"_, that allow you to compensate the effect of a command. An undoer returns a new function that in the future can be executed to return the events that can reverse the effect of the command itself.
 For example, the "under" of AddTodo is the related RemoveTodo (see next paragraph).
 
 In the following code we can see the signature for any state viewers for any context or aggregate. State viewer corresponds to read models: they will provide the current state of aggregate or context. Typically, that state may come from a cache, from the event store (by processing the events) or from a topic of Kafa (or eventually any other message/event broker, even though I haven't implemented completed any of them yet).
@@ -76,15 +76,12 @@ A command may return more than one event:
 ```
 Any command must ensure that it will return Result.OK (and therefore, one or more events) only if the events to be returned, when processed on the current state, return an Ok result, i.e. a valid state (and no error). 
 
-The _evolve_ tolerates inconsistent events.
-Thus the _evolve_ will just skip events that, when processed, return an error.
-This feature is associated with a specific permissive optimistic lock type that we will see later.
+There are two version of the _evolve_: one tolerates inconsistent events and another one will fail in case just an event will return an error.
+The way the evens are stored in the event store ensures that no stored event will return inconsistent state when processed. Therefore future releases of the library will probably use by default the unforgiving version of the _evolve_ function.
 
 ## Undoer
 
-The use of the lambda expression is a nice trick for the undoers (the _under_ is returned as a lambda that retrieves the context for applying the undo and returns another lambda that actually can "undo" the command).
-
-I haven't simplified any example of undoer yet, but this is the idea related to commands for adding and removing items 
+Here is an example of the use of an undoer for a command:
 
 
 ```fsharp
@@ -146,20 +143,16 @@ module CartCommands =
  ```
 
 
-Probably to follow the example its worth reading again the definition of an undoer:
+This is the abstract definition of an of the undoer of an aggregate.
 ```FSharp
         abstract member Undoer: Option<'A -> AggregateViewer<'A> -> Result<unit -> Result<List<'E>, string>, string>>
 ```
 
-This can be simplified as the state of the aggregate is accessed in different ways, however this is the meaning:
+The meaning is:
+Extract from the current state of the aggregate useful info for a future "rollback"/"undo" and return a function that, when applied to the current state of the aggregate, will return the events that will "undo" the effect of this command.
 
-Extract from the current state of the aggregate useful info for a future "rollback"/"undo" and return a function that, when applied to the current state of the aggregate, will return the events that will "undo" the effect of the command.
-
-Saga like transaction handling will probably need this logic.
-However, most of the time the commands between multiple aggregates uses db transactions (like Postgres) and the undoer is not needed.
-
-
-
+You may need undoers if the event store doesn't support multiple stream transactions or if you will use a distributed architecture with many nodes handling different streams of events.
+By using PostgresSQL as event store you can just set the undoer to None as the event store will handle the cross-streams transactions for us. 
 
 [Commands.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Tags/Commands.fs)
 

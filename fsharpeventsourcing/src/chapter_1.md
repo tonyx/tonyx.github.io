@@ -1,4 +1,4 @@
-# Entities
+# Context
 
 I am representing in this example the Todo entity and a Todo context
 

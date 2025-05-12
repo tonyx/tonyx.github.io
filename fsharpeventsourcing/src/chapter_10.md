@@ -1,15 +1,10 @@
 # Apache Kafka
-__the apache Kafka development is still in progress__
 
-We can use Apache Kafka to notify events after storing them.
-The style is the outbox pattern (without db).
-Examples of usage are [here](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/AppVersions.fs).
-Some tests are instrumented to eventually listen to Apache Kafka, see [here](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample.Test/MultiVersionsTests.fs).
-Any "view" node may build its own view of the cluster state by listening to the events.
-KafkaStateViewer and KafkaAggregateStateViewer are able to build the current state by subscribing events on specific topics and specific partitions of topics.  
+We will see later if and when an event broker is needed.
 
-Command handler is able to use read models given by KafkaStateViewer.
-Kafka based state viewer will be able to detect anomaly by checking the progressive id of any event.
-In case of such anomaly the state viewer will be able to access to the event store to build the state.
+Anyway the mechanism should be: after the event is stored in the event store, it will be published to a queue/topic/message bus.
 
-This part is still under development to be optmized.
+The command handler will still use the event store to get the state of the context and to store the events.
+
+An application layer may read the state of some aggregate/context by listening the events.
+
