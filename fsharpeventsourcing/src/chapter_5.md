@@ -1,6 +1,6 @@
 # Application service layer
 
-An application service layer implements the logic to the outside world.
+An application service layer implements the logic and makes business logic calls, or queries, available.
 Here is one of the simplest examples of an entry for a service involving a single context, by building and running an AddTag command.
 
 ```FSharp

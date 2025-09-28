@@ -145,13 +145,19 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="command-handler"><a class="header" href="#command-handler">Command Handler</a></h1>
-<p>The Command Handler has the responsibility of:</p>
+<p>The Command Handler has the responsibility of running the commands which means doing the following steps:</p>
 <ul>
-<li>getting the state</li>
-<li>trying to run commands passed, and eventually storing the related events.</li>
-<li>making periodic snapshots, according to the SnapshotsInterval.</li>
+<li>get the state/s of the aggregate/s invoved on the command.</li>
+<li>try to run commands on that states, </li>
+<li>try to store the resulting events,</li>
+<li>send the events to the event broker,</li>
+<li>making periodic snapshots, according to the SnapshotsInterval.
+Those steps are enveloped by a result computation expression expressing explicitly the &quot;happy path&quot; and implicitly the &quot;error path&quot; using monading
+operators.
+Note: The only real success occurs after the event store is stored.
+The delivery of the messages does not affect the result of running the command. 
+Any message listener can implement a &quot;fallback&quot; policy so thy they can be rehydrated by a call to the event store to restore the correct state of the aggregate.</li>
 </ul>
-<p>There are two different command handler implementations:</p>
 <p><a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/CommandHandler.fs">CommandHandler.fs</a></p>
 
                     </main>

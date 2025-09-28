@@ -28,4 +28,25 @@ Contexts represent rows. Some constraints are applied to the rows. The context i
 The same as application 2 but where rows are aggregates (so I can have any number of instances of seat rows). The application uses the SAFE based stack based template son can publish the system as a rest service using the Fable Remoting library.
 
 ## Sample application 6. Pub system
+Objects: Dishes, Ingredients, and Suppliers.
+
+## Sample application 7. Shopping cart 
+Objects Shopping Cart, Goods, a container with references to the existing goods. Note: the container ("context") can be ditched. the applications has two different versions: one using binary serialization and another using text/json serialization
+
+
+## Sample application 8. Tycoon Transport
+Partial implementation of the problem described here:
+[Transport Tycoon](https://github.com/trustbit/exercises/blob/master/transport-tycoon-1.md)
+
+## Sample application 9. Classes, Teachers, Students, Reservations, Items
+
+Classes, techer, students. Introducing the problem of course creation and
+cancellation fees showing transactions on multiple objects. (i.e. course, students, teachers, balance...).
+An experimental feature is related to "cross aggregates constraints" passed
+as lambda expressions to a command: a command may query the state of objects
+that are not directly related to the command 
+
+## Sample application 10.  Multiple commands of any type 
+
+Creating transactions of multiple commands of any type.
 

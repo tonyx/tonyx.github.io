@@ -165,6 +165,20 @@ Contexts, events, commands, service application layer, Event Store.</p>
 <h2 id="sample-application-3-booking-system-for-seats-in-a-stadium"><a class="header" href="#sample-application-3-booking-system-for-seats-in-a-stadium">Sample application 3. Booking system for seats in a stadium</a></h2>
 <p>The same as application 2 but where rows are aggregates (so I can have any number of instances of seat rows). The application uses the SAFE based stack based template son can publish the system as a rest service using the Fable Remoting library.</p>
 <h2 id="sample-application-6-pub-system"><a class="header" href="#sample-application-6-pub-system">Sample application 6. Pub system</a></h2>
+<p>Objects: Dishes, Ingredients, and Suppliers.</p>
+<h2 id="sample-application-7-shopping-cart"><a class="header" href="#sample-application-7-shopping-cart">Sample application 7. Shopping cart</a></h2>
+<p>Objects Shopping Cart, Goods, a container with references to the existing goods. Note: the container (&quot;context&quot;) can be ditched. the applications has two different versions: one using binary serialization and another using text/json serialization</p>
+<h2 id="sample-application-8-tycoon-transport"><a class="header" href="#sample-application-8-tycoon-transport">Sample application 8. Tycoon Transport</a></h2>
+<p>Partial implementation of the problem described here:
+<a href="https://github.com/trustbit/exercises/blob/master/transport-tycoon-1.md">Transport Tycoon</a></p>
+<h2 id="sample-application-9-classes-teachers-students-reservations-items"><a class="header" href="#sample-application-9-classes-teachers-students-reservations-items">Sample application 9. Classes, Teachers, Students, Reservations, Items</a></h2>
+<p>Classes, techer, students. Introducing the problem of course creation and
+cancellation fees showing transactions on multiple objects. (i.e. course, students, teachers, balance...).
+An experimental feature is related to &quot;cross aggregates constraints&quot; passed
+as lambda expressions to a command: a command may query the state of objects
+that are not directly related to the command </p>
+<h2 id="sample-application-10--multiple-commands-of-any-type"><a class="header" href="#sample-application-10--multiple-commands-of-any-type">Sample application 10.  Multiple commands of any type</a></h2>
+<p>Creating transactions of multiple commands of any type.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="context"><a class="header" href="#context">Context</a></h1>
 <p>I am representing in this example the Todo entity and a Todo context</p>
 <p>This is the Todo entity definition:</p>
@@ -186,16 +200,11 @@ Contexts, events, commands, service application layer, Event Store.</p>
                 }
 </code></pre>
 <p>The Todos context needs also some other members (to handle the stream name, the serialize/deserialize functions, and the snapshots interval...)</p>
-<p>The Context will define a <em>Zero</em> static member (initial state).
-In case we use 
-<a href="https://github.com/Zaid-Ajaj/Fable.Remoting">Fable remoting</a>)
-then we need to share the definition of the entities between the client and the server side.
-(Shared project)</p>
 <p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample.Shared/Entities.fs">TodosModel.fs</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="context-1"><a class="header" href="#context-1">Context</a></h1>
-<p>A context is a class meant to be event-sourced, i.e. associated with a stream of events.
-To buld the state of a context using stored events we use the <em>evolve</em> function.</p>
-<p><em>events</em> are associated to members of the cluster that end up in Update/Delete/Remove of some entity</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="contexts"><a class="header" href="#contexts">Contexts</a></h1>
+<p>A context is a class meant to be event-sourced, i.e., associated with a stream of events.
+To build the state of a context using stored events, we use the <em>evolve</em> function.</p>
+<p><em>events</em> are associated with members of the cluster that end up in Update/Delete/Remove of some entity</p>
 <p>Static members that are mandatory for any cluster of entities are:</p>
 <ul>
 <li>
@@ -232,7 +241,7 @@ To buld the state of a context using stored events we use the <em>evolve</em> fu
             this
             |&gt; jsonSerializer.Serialize
 </code></pre>
-<p>In the following example, the TodosContext can check the validity of the categories referenced by any todo before adding it (to preserve the invariant rule that you can add only todo with valid category ID references).
+<p>In the following example, the TodosContext can check the validity of the categories referenced by any todo before adding it (to preserve the invariant rule that you can add only a todo with a valid category ID reference).
 It uses the &quot;result&quot; computational expression included in the FsToolkit.ErrorHandling library which supports the <a href="https://fsharpforfunandprofit.com/rop/"><em>railway-oriented programming</em></a> pattern of handling errors.</p>
 <p>Example:</p>
 <pre><code class="language-FSharp">    member this.AddTodo (t: Todo) =
@@ -254,7 +263,8 @@ It uses the &quot;result&quot; computational expression included in the FsToolki
 </code></pre>
 <p>Todo: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Todos/Context.fs">Context.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="events"><a class="header" href="#events">Events</a></h1>
-<p>Events are discriminated unions (DU) with cases associated with transformation members.</p>
+<p>It is easy to represent events by discriminated unions (DU) with cases associated with transformation members.
+We need to implement the Event interface and so the Process member.</p>
 <p>When we process an event it returns a new state or an error: </p>
 <pre><code class="language-FSharp">    type Event&lt;'A&gt; =
         abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
@@ -266,7 +276,7 @@ The <em>Process</em> member of the event is implemented by calling the related c
 <pre><code class="language-Fsharp">    type TodoEvent =
         | TodoAdded of Todo
         | TodoRemoved of Guid
-            interface Event&lt;TodosCluster&gt; with
+            interface Event&lt;Todo&gt; with
                 member this.Process (x: TodosContext ) =
                     match this with
                     | TodoAdded (t: Todo) -&gt; 
@@ -278,7 +288,7 @@ The <em>Process</em> member of the event is implemented by calling the related c
 <p>Source code:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Todos/Events.fs">Events.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
 <p>(this section needs an update as we have a new )</p>
-<p>A Command type is a Discriminated Union. Executing the command on a specific context or aggregate means returning a new state and, accordingly, a list of events, or an error.
+<p>A Command type can be represented by a Discriminated Union. Executing the command on a specific context or aggregate means returning a new state and, accordingly, a list of events, or an error.
 You can also specify <em>&quot;command undoers&quot;</em>, that allow you to compensate the effect of a command. An undoer returns a new function that in the future can be executed to return the events that can reverse the effect of the command itself.
 For example, the &quot;under&quot; of AddTodo is the related RemoveTodo (see next paragraph).</p>
 <p>In the following code we can see the signature for any state viewers for any context or aggregate. State viewer corresponds to read models: they will provide the current state of aggregate or context. Typically, that state may come from a cache, from the event store (by processing the events) or from a topic of Kafa (or eventually any other message/event broker, even though I haven't implemented completed any of them yet).</p>
@@ -411,7 +421,7 @@ Extract from the current state of the aggregate useful info for a future &quot;r
 By using PostgresSQL as event store you can just set the undoer to None as the event store will handle the cross-streams transactions for us. </p>
 <p><a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Tags/Commands.fs">Commands.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
-<p>An application service layer implements the logic to the outside world.
+<p>An application service layer implements the logic and makes business logic calls, or queries, available.
 Here is one of the simplest examples of an entry for a service involving a single context, by building and running an AddTag command.</p>
 <pre><code class="language-FSharp">        member this.AddTag tag =
             result {
@@ -434,29 +444,36 @@ This code removes a tag and any reference to it.</p>
 </code></pre>
 <p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/App.fs">App.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="command-handler"><a class="header" href="#command-handler">Command Handler</a></h1>
-<p>The Command Handler has the responsibility of:</p>
+<p>The Command Handler has the responsibility of running the commands which means doing the following steps:</p>
 <ul>
-<li>getting the state</li>
-<li>trying to run commands passed, and eventually storing the related events.</li>
-<li>making periodic snapshots, according to the SnapshotsInterval.</li>
+<li>get the state/s of the aggregate/s invoved on the command.</li>
+<li>try to run commands on that states, </li>
+<li>try to store the resulting events,</li>
+<li>send the events to the event broker,</li>
+<li>making periodic snapshots, according to the SnapshotsInterval.
+Those steps are enveloped by a result computation expression expressing explicitly the &quot;happy path&quot; and implicitly the &quot;error path&quot; using monading
+operators.
+Note: The only real success occurs after the event store is stored.
+The delivery of the messages does not affect the result of running the command. 
+Any message listener can implement a &quot;fallback&quot; policy so thy they can be rehydrated by a call to the event store to restore the correct state of the aggregate.</li>
 </ul>
-<p>There are two different command handler implementations:</p>
 <p><a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/CommandHandler.fs">CommandHandler.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="eventstore-database"><a class="header" href="#eventstore-database">EventStore (database)</a></h1>
 <p>An event-store, stores and retrieves events and snapshots related to each single context.</p>
 <p>An example of a storage implementation in Postgres: 
 <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/PgEventStore.fs">PgEventStore.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="refactoring-aggregates"><a class="header" href="#refactoring-aggregates">Refactoring Aggregates</a></h1>
-<p>If you need to change an aggregate (or context) for new requirements we need to refactor the aggregate.</p>
+<p>If you need to change an aggregate (or context) for new requirements, you need to refactor the aggregate so that it can handle the old and the new formats.</p>
 <p>The technique is based on being able to create an aggregate that mimics the old one and an upcast function from the old one to the new one.</p>
-<p>Beside this, you may do a bulk upcast of all the existing aggregates by making a snapthot of all of them.
-The new snapthot will use the new aggregate format so the definition of the old aggregate will be unnecessary after the bulk upcast and resnapshot.</p>
-<p>You will create the shadow aggregate that mimic the old one in the same module of the current one, providing that the module is defined as rec. </p>
+<p>It is convenient to do a bulk upcast of all the existing aggregates by making a snapshot of all of them.
+The new snapshot will use the new aggregate format, so the definition of the old aggregate will be unnecessary after the bulk upcast and resnapshot.</p>
+<p>To do an upcast, you can create a shadow aggregate that mimics the old one in the same module of the current one, provided that the module is defined as rec (recursive).</p>
 <p>The mechanism is based on handling the failure of the Deserialization by using as fallback the Deserialization using the old aggregate and then the upcast function to the new one.</p>
+<p>Note: it may depend on the serialization library and its configuration as it is not always true that you can deserialize the old aggregate changing its target type with a different name than the original one. </p>
+<p>The provided examples are all using FSPickler configured in a way that it allows the upcast from the old aggregate with a different name to the new one.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
-<p>As I mentioned in the previous chapter we may have different versions of the same application based on different clusters.</p>
-<p>We may want to test all of them and also we may want to test the migration function from one version to another in those tests.
-A structure of a parametric test that considers various possible combinations of application versions and migration functions is the following:</p>
+<p>A simple way to test multiple configuration is base on passing the different instances of the application (for instance one is using the in memory event store and another one is using the postgres event store). 
+A simple extension to Expecto is provided introducint the &quot;multipleTestCase&quot; function. Here it is used to test also a migration between aggregate versions</p>
 <pre><code class="language-FSharp">
         multipleTestCase &quot;test something &quot; versions &lt;| fun (ap, apUpgd, migrator)  -&gt;
             let _ = ap._reset()
@@ -474,11 +491,9 @@ A structure of a parametric test that considers various possible combinations of
             // test something on apUpgd, which is the &quot;upgraded version&quot; of the application
 
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="apache-kafka"><a class="header" href="#apache-kafka">Apache Kafka</a></h1>
-<p>We will see later if and when an event broker is needed.</p>
-<p>Anyway the mechanism should be: after the event is stored in the event store, it will be published to a queue/topic/message bus.</p>
-<p>The command handler will still use the event store to get the state of the context and to store the events.</p>
-<p>An application layer may read the state of some aggregate/context by listening the events.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="rabbitmq"><a class="header" href="#rabbitmq">Rabbitmq</a></h1>
+<p>For each aggregate we can define a &quot;consumer&quot; that is able to listen to the events of that state</p>
+<p>Some tests are instrumented to be able to test this configuration by adding some artificial delays in those tests to allow the propagation of the messages. Those examples gets the state of the involved aggregates by those consumers instead of accessing the event store. RabbitMq must be running on localhost. (in my configuration it's just about running rabbitmq-server. It must of course be ok running it on docker).</p>
 
                     </main>
 

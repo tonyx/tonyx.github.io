@@ -146,7 +146,7 @@
                     <main>
                         <h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
 <p>(this section needs an update as we have a new )</p>
-<p>A Command type is a Discriminated Union. Executing the command on a specific context or aggregate means returning a new state and, accordingly, a list of events, or an error.
+<p>A Command type can be represented by a Discriminated Union. Executing the command on a specific context or aggregate means returning a new state and, accordingly, a list of events, or an error.
 You can also specify <em>&quot;command undoers&quot;</em>, that allow you to compensate the effect of a command. An undoer returns a new function that in the future can be executed to return the events that can reverse the effect of the command itself.
 For example, the &quot;under&quot; of AddTodo is the related RemoveTodo (see next paragraph).</p>
 <p>In the following code we can see the signature for any state viewers for any context or aggregate. State viewer corresponds to read models: they will provide the current state of aggregate or context. Typically, that state may come from a cache, from the event store (by processing the events) or from a topic of Kafa (or eventually any other message/event broker, even though I haven't implemented completed any of them yet).</p>

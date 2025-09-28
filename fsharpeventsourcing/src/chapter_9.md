@@ -1,9 +1,7 @@
 # Testing
 
-As I mentioned in the previous chapter we may have different versions of the same application based on different clusters.
-
-We may want to test all of them and also we may want to test the migration function from one version to another in those tests.
-A structure of a parametric test that considers various possible combinations of application versions and migration functions is the following:
+A simple way to test multiple configuration is base on passing the different instances of the application (for instance one is using the in memory event store and another one is using the postgres event store). 
+A simple extension to Expecto is provided introducint the "multipleTestCase" function. Here it is used to test also a migration between aggregate versions
 
 ```FSharp
 

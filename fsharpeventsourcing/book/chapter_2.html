@@ -144,10 +144,10 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="context"><a class="header" href="#context">Context</a></h1>
-<p>A context is a class meant to be event-sourced, i.e. associated with a stream of events.
-To buld the state of a context using stored events we use the <em>evolve</em> function.</p>
-<p><em>events</em> are associated to members of the cluster that end up in Update/Delete/Remove of some entity</p>
+                        <h1 id="contexts"><a class="header" href="#contexts">Contexts</a></h1>
+<p>A context is a class meant to be event-sourced, i.e., associated with a stream of events.
+To build the state of a context using stored events, we use the <em>evolve</em> function.</p>
+<p><em>events</em> are associated with members of the cluster that end up in Update/Delete/Remove of some entity</p>
 <p>Static members that are mandatory for any cluster of entities are:</p>
 <ul>
 <li>
@@ -184,7 +184,7 @@ To buld the state of a context using stored events we use the <em>evolve</em> fu
             this
             |&gt; jsonSerializer.Serialize
 </code></pre>
-<p>In the following example, the TodosContext can check the validity of the categories referenced by any todo before adding it (to preserve the invariant rule that you can add only todo with valid category ID references).
+<p>In the following example, the TodosContext can check the validity of the categories referenced by any todo before adding it (to preserve the invariant rule that you can add only a todo with a valid category ID reference).
 It uses the &quot;result&quot; computational expression included in the FsToolkit.ErrorHandling library which supports the <a href="https://fsharpforfunandprofit.com/rop/"><em>railway-oriented programming</em></a> pattern of handling errors.</p>
 <p>Example:</p>
 <pre><code class="language-FSharp">    member this.AddTodo (t: Todo) =

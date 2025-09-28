@@ -25,10 +25,5 @@ This is the Todo entity definition:
 
 The Todos context needs also some other members (to handle the stream name, the serialize/deserialize functions, and the snapshots interval...)
 
-The Context will define a _Zero_ static member (initial state).
-In case we use 
- [Fable remoting](https://github.com/Zaid-Ajaj/Fable.Remoting))
-then we need to share the definition of the entities between the client and the server side.
-(Shared project)
 
 Source: [TodosModel.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample.Shared/Entities.fs)

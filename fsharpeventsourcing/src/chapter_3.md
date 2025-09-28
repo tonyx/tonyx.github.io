@@ -1,6 +1,7 @@
 # Events
 
-Events are discriminated unions (DU) with cases associated with transformation members.
+It is easy to represent events by discriminated unions (DU) with cases associated with transformation members.
+We need to implement the Event interface and so the Process member.
 
 When we process an event it returns a new state or an error: 
 
@@ -19,7 +20,7 @@ The _Process_ member of the event is implemented by calling the related clusters
     type TodoEvent =
         | TodoAdded of Todo
         | TodoRemoved of Guid
-            interface Event<TodosCluster> with
+            interface Event<Todo> with
                 member this.Process (x: TodosContext ) =
                     match this with
                     | TodoAdded (t: Todo) -> 

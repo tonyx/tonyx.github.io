@@ -2,7 +2,7 @@
 
 (this section needs an update as we have a new )
 
-A Command type is a Discriminated Union. Executing the command on a specific context or aggregate means returning a new state and, accordingly, a list of events, or an error.
+A Command type can be represented by a Discriminated Union. Executing the command on a specific context or aggregate means returning a new state and, accordingly, a list of events, or an error.
 You can also specify _"command undoers"_, that allow you to compensate the effect of a command. An undoer returns a new function that in the future can be executed to return the events that can reverse the effect of the command itself.
 For example, the "under" of AddTodo is the related RemoveTodo (see next paragraph).
 

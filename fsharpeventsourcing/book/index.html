@@ -164,6 +164,20 @@ Contexts, events, commands, service application layer, Event Store.</p>
 <h2 id="sample-application-3-booking-system-for-seats-in-a-stadium"><a class="header" href="#sample-application-3-booking-system-for-seats-in-a-stadium">Sample application 3. Booking system for seats in a stadium</a></h2>
 <p>The same as application 2 but where rows are aggregates (so I can have any number of instances of seat rows). The application uses the SAFE based stack based template son can publish the system as a rest service using the Fable Remoting library.</p>
 <h2 id="sample-application-6-pub-system"><a class="header" href="#sample-application-6-pub-system">Sample application 6. Pub system</a></h2>
+<p>Objects: Dishes, Ingredients, and Suppliers.</p>
+<h2 id="sample-application-7-shopping-cart"><a class="header" href="#sample-application-7-shopping-cart">Sample application 7. Shopping cart</a></h2>
+<p>Objects Shopping Cart, Goods, a container with references to the existing goods. Note: the container (&quot;context&quot;) can be ditched. the applications has two different versions: one using binary serialization and another using text/json serialization</p>
+<h2 id="sample-application-8-tycoon-transport"><a class="header" href="#sample-application-8-tycoon-transport">Sample application 8. Tycoon Transport</a></h2>
+<p>Partial implementation of the problem described here:
+<a href="https://github.com/trustbit/exercises/blob/master/transport-tycoon-1.md">Transport Tycoon</a></p>
+<h2 id="sample-application-9-classes-teachers-students-reservations-items"><a class="header" href="#sample-application-9-classes-teachers-students-reservations-items">Sample application 9. Classes, Teachers, Students, Reservations, Items</a></h2>
+<p>Classes, techer, students. Introducing the problem of course creation and
+cancellation fees showing transactions on multiple objects. (i.e. course, students, teachers, balance...).
+An experimental feature is related to &quot;cross aggregates constraints&quot; passed
+as lambda expressions to a command: a command may query the state of objects
+that are not directly related to the command </p>
+<h2 id="sample-application-10--multiple-commands-of-any-type"><a class="header" href="#sample-application-10--multiple-commands-of-any-type">Sample application 10.  Multiple commands of any type</a></h2>
+<p>Creating transactions of multiple commands of any type.</p>
 
                     </main>
 
