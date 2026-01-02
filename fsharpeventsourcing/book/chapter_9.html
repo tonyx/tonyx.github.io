@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_1.html"><strong aria-hidden="true">2.</strong> Entities</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">3.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">4.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">5.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">6.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">7.</strong> Repository</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">8.</strong> Storage</a></li><li class="chapter-item expanded "><a href="chapter_8.html"><strong aria-hidden="true">9.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html" class="active"><strong aria-hidden="true">10.</strong> Testing</a></li><li class="chapter-item expanded "><a href="chapter_10.html"><strong aria-hidden="true">11.</strong> Apache Kafka</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">2.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">3.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">4.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">5.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">6.</strong> Repository</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">7.</strong> Storage</a></li><li class="chapter-item expanded "><a href="chapter_8.html"><strong aria-hidden="true">8.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html" class="active"><strong aria-hidden="true">9.</strong> Testing</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -145,25 +145,65 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
-<p>A simple way to test multiple configuration is base on passing the different instances of the application (for instance one is using the in memory event store and another one is using the postgres event store). 
-A simple extension to Expecto is provided introducint the &quot;multipleTestCase&quot; function. Here it is used to test also a migration between aggregate versions</p>
-<pre><code class="language-FSharp">
-        multipleTestCase &quot;test something &quot; versions &lt;| fun (ap, apUpgd, migrator)  -&gt;
-            let _ = ap._reset()
-
-            // test something on ap, which is the &quot;initial version&quot; 
-            // of the application
-            .....
-
-            // then migrate from &quot;ap&quot; version to apUpgd version 
-            // using its migrator function
-
-            let migrated = migrator()
-            Expect.isOk migrated &quot;should be ok&quot;
-
-            // test something on apUpgd, which is the &quot;upgraded version&quot; of the application
+<p>There are plenty of tests in the examples folders.
+of the Sharpino repository.
+the structure is based on using a setup that wipe the event store and the cache before each test case. The test must be run in a sequence to avoid interference between them because of the state of the event store and the cache.o</p>
+<p>An extension of Expecto provide a &quot;multipleTestCase` function that makes the test parametric.</p>
+<p>A particular case of using the <em>multipleTestCase</em> is to run the same test case with different event store implementations (i.e. inmemory, Postgres json, Postgres binary eventually in conjuction with Rabbitmq).</p>
+<p>A particular parameter needed to test by using RabbitMQ as event broker is to run the tests in sequence with some delay to allow the propagation of the messages between the different consumers. The delay parameter will so depend on which configuration is under test.</p>
+<p>An example of setting &quot;instances&quot; (which should mean 'parameters') to feed the test cases is the following:</p>
+<pre><code class="language-FSharp">let instances =
+    [
+        #if RABBITMQ
+            (fun () -&gt; setUp pgEventStore),  ItemManager(pgEventStore, rabbitMqItemStateViewer, rabbitMqReservationStateViewer, messageSenders), 100
+        #else
+            (fun () -&gt; setUp(pgEventStore)), ItemManager(pgEventStore, pgStorageItemViewer, pgStorageReservationViewer), 0
+            (fun () -&gt; setUp(memEventStore)),  ItemManager(memEventStore, memoryStorageItemViewer, memoryStorageReservationViewer), 0
+        #endif
+    ]
+</code></pre>
+<p>That configuration use two (or three if Rabbitmq is defined) different event stores and viewers to run the same test cases.</p>
+<p>In the examples we see that there exist &quot;viewers&quot; based on the event store and based on Rabbitmq consumers.</p>
+<p>Any &quot;viewer&quot; based on the eventStore (which uses also the cache in between) has the following signature:</p>
+<pre><code class="language-FSharp">    type AggregateViewer&lt;'A&gt; = AggregateId -&gt; Result&lt;EventId * 'A,string&gt;
+</code></pre>
+<p>By using a viewer based on the event store we can rely on this function present 
+in the command handler:</p>
+<pre><code class="language-FSharp">    let inline getAggregateStorageFreshStateViewer&lt;'A, 'E, 'F
+        when 'A :&gt; Aggregate&lt;'F&gt; 
+        and 'A : (static member Deserialize: 'F -&gt; Result&lt;'A, string&gt;) 
+        and 'A : (static member StorageName: string) 
+        and 'A : (static member Version: string) 
+        and 'E :&gt; Event&lt;'A&gt;
+        and 'E: (static member Deserialize: 'F -&gt; Result&lt;'E, string&gt;)
+        &gt;
+        (eventStore: IEventStore&lt;'F&gt;) 
+        =
+            fun (id: Guid) -&gt;
+                result
+                    {
+                        let! (eventId, result) = getAggregateFreshState&lt;'A, 'E, 'F&gt; id eventStore
+                        return
+                            (eventId, result :?&gt; 'A) 
+                    }
+</code></pre>
+<p>Note: a critical point is that given that the cache layer is type agnostic, some cast/boxing is needed to return the proper type of the aggregate. It seems that this use is safe enough as long as the following constraints is satisfied:
+whenever an aggregate of type 'A is stored in the event store, it is retrieved as type 'A as well. This aspect should be invisible to the application using the library but, still, it worth mentioning it.
+Also note that the box/unboxing operations may have a performance impact, but that is overcomed by the empirical evidence of the improvement given by the cache layer.</p>
+<p>A viewer based on Rabbitmq deserves a different chapter. However the provided examples are based on using some blueprint to facilitate handling the aggregate states of a certains stream as a ConcurrentDictionary:</p>
+<pre><code class="language-FSharp">    ConcurrentDictionary&lt;AggregateId, (EventId * 'A)
 
 </code></pre>
+<p>Many examples based on RabbitMq use such blueprints to implement a &quot;Consumer&quot; thet, among all, provide a viewer function that can be used in the service layer.</p>
+<pre><code class="language-FSharp">        member this.GetAggregateState (id: AggregateId) =
+            if (statePerAggregate.ContainsKey id) then
+                statePerAggregate.[id]
+                |&gt; Result.Ok
+            else
+                Result.Error &quot;No state&quot; 
+
+</code></pre>
+<p>In essence: by instrumenting any stream with RabbitMq consumer, and by also instrumenting the tests to launch the consumers as service, it will be possible to use and test the viewers based on RabbitMq.</p>
 
                     </main>
 
@@ -173,9 +213,6 @@ A simple extension to Expecto is provided introducint the &quot;multipleTestCase
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next" href="chapter_10.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <i class="fa fa-angle-right"></i>
-                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -187,9 +224,6 @@ A simple extension to Expecto is provided introducint the &quot;multipleTestCase
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next" href="chapter_10.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <i class="fa fa-angle-right"></i>
-                    </a>
             </nav>
 
         </div>

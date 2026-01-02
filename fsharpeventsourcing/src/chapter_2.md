@@ -1,4 +1,5 @@
 # Contexts
+=_This content is deprecated_: instead of contexts use aggregates (see sample applications 2 and 3).
 
 A context is a class meant to be event-sourced, i.e., associated with a stream of events.
 To build the state of a context using stored events, we use the _evolve_ function.

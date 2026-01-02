@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_1.html"><strong aria-hidden="true">2.</strong> Entities</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">3.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">4.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">5.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">6.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">7.</strong> Repository</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">8.</strong> Storage</a></li><li class="chapter-item expanded "><a href="chapter_8.html" class="active"><strong aria-hidden="true">9.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html"><strong aria-hidden="true">10.</strong> Testing</a></li><li class="chapter-item expanded "><a href="chapter_10.html"><strong aria-hidden="true">11.</strong> Apache Kafka</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">2.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">3.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">4.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">5.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">6.</strong> Repository</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">7.</strong> Storage</a></li><li class="chapter-item expanded "><a href="chapter_8.html" class="active"><strong aria-hidden="true">8.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html"><strong aria-hidden="true">9.</strong> Testing</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -146,13 +146,78 @@
                     <main>
                         <h1 id="refactoring-aggregates-via-upcasting"><a class="header" href="#refactoring-aggregates-via-upcasting">Refactoring Aggregates via upcasting</a></h1>
 <p>If you need to change an aggregate (or context) for new requirements, you need to refactor the aggregate so that it can handle the old and the new formats.</p>
-<p>The technique is based on being able to create an aggregate that mimics the old one and an upcast function from the old one to the new one.</p>
-<p>It is convenient to do a bulk upcast of all the existing aggregates by making a snapshot of all of them.
-The new snapshot will use the new aggregate format, so the definition of the old aggregate will be unnecessary after the bulk upcast and resnapshot.</p>
+<p>An upcasting technique is based on being able to create an aggregate that mimics the old one and an upcast function to convert from the old one to the new one.</p>
+<p>It is convenient to do a bulk upcast of all the existing aggregates by making a snapshot of all of them to be able to drop the old aggregate definition from the code.
+The new snapshots will use the new aggregate format, so the definition of the old aggregate will be unnecessary after the bulk upcast and resnapshot.</p>
 <p>To do an upcast, you can create a shadow aggregate that mimics the old one in the same module of the current one, provided that the module is defined as rec (recursive).</p>
 <p>The mechanism is based on handling the failure of the Deserialization by using as fallback the Deserialization using the old aggregate and then the upcast function to the new one.</p>
 <p>Note: it may depend on the serialization library and its configuration as it is not always true that you can deserialize the old aggregate changing its target type with a different name than the original one. </p>
 <p>The provided examples are all using FSPickler configured in a way that it allows the upcast from the old aggregate with a different name to the new one.</p>
+<p>Quick example of an upcast from an old aggregate to a new one:</p>
+<p>The current version of the Course aggregate is:</p>
+<pre><code class="language-fsharp">type Curse =
+    {
+        Id: Guid
+        Name: string
+        Students: List&lt;Guid&gt;
+        MaxNumberOfStudents: int
+    }
+</code></pre>
+<p>We want to add a new field <em>Teachers</em> to the aggregate so it will become:</p>
+<pre><code class="language-fsharp">type Course =
+    {
+        Id: Guid
+        Name: string
+        Students: List&lt;Guid&gt;
+        MaxNumberOfStudents: int
+        Teachers: List&lt;Guid&gt;
+    }
+</code></pre>
+<p>We want to be able to read the old version of the aggregate and upcast it to the new one. So we redefine a type <em>Course001</em> that mimics the old version of the aggregate:</p>
+<pre><code class="language-fsharp">type Course001 =
+    {
+        Id: Guid
+        Name: string
+        Students: List&lt;Guid&gt;
+        MaxNumberOfStudents: int
+    }
+</code></pre>
+<p>We instrument the course001 with deserialization and upcast function</p>
+<pre><code class="language-fsharp">type Course001 =
+    {
+        Id: Guid
+        Name: string
+        Students: List&lt;Guid&gt;
+        MaxNumberOfStudents: int
+        Teachers: List&lt;Guid&gt;
+    }
+
+    with
+        static member Deserialize x =
+            jsonPSerializer.Deserialize&lt;Curse001&gt; x
+        member this.Upcast(): Course =
+            {   Name = this.Name
+                Id = this.Id
+                Students = this.Students
+                MaxNumberOfStudents = this.MaxNumberOfStudents
+                Teachers = []
+            }
+
+Finallly we make sure that the current deserialize function of the Course aggregate can handle both the old and the new format:
+```fsharp 
+    static member Deserialize(x: string): Result&lt;Course, string&gt; =
+        let firstTry = jsonPSerializer.Deserialize&lt;Course&gt; x
+        match firstTry with
+        | Ok x -&gt; x |&gt; Ok
+        | Error e -&gt;
+            let secondTry = jsonPSerializer.Deserialize&lt;Curse001&gt; x
+            match secondTry with
+            | Ok x -&gt; x.Upcast() |&gt; Ok
+            | Error e1 -&gt;
+                Error (e + &quot; &quot; + e1)
+</code></pre>
+<p>Examples using FSharp.SystemTextJson are also privided. 
+It's important to test any library to be sure that the &quot;mimic old type&quot; deserialization and upcast works as in this example.</p>
 
                     </main>
 
