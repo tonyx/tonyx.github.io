@@ -84,7 +84,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_1.html"><strong aria-hidden="true">2.</strong> Entities</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">3.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">4.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">5.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">6.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">7.</strong> Repository</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">8.</strong> Storage</a></li><li class="chapter-item expanded "><a href="chapter_8.html"><strong aria-hidden="true">9.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html"><strong aria-hidden="true">10.</strong> Testing</a></li><li class="chapter-item expanded "><a href="chapter_10.html"><strong aria-hidden="true">11.</strong> Apache Kafka</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">2.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">3.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">4.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">5.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">6.</strong> Repository</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">7.</strong> Storage</a></li><li class="chapter-item expanded "><a href="chapter_8.html"><strong aria-hidden="true">8.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html"><strong aria-hidden="true">9.</strong> Testing</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -147,61 +147,68 @@
                     <main>
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
 <p><a href="https://github.com/tonyx/Micro_ES_FSharp_Lib">Sharpino</a> is a little F# event sourcing framework.
-With Sharpino you can build an event sourced application using a functional approach. 
 Two types of event sourced objects are supported: <em>Contexts</em> and <em>Aggregates</em>.
-<em>Contexts</em>: There is no specific id for a context so we just assume that a single instance and a single zero (initial state) instance exist for any <em>Context</em>.
-<em>Aggregates</em>: Many instances of an aggregate can exist at a time so we need an Id for each instance represented by a Guid. The initial state for any aggregate is its initial snapshot in the event store.</p>
-<p>Contexts and aggregates will implement transformation members that will return a new object with a new state using the Result data type. We tipically use Railway oriented programming is used to handle errors in any transformation operation (by the FsTookit.ErrorHandling library).</p>
-<p>We associate transformation members with events: processing an event will return a new object with a new state by invoking the transformation member associated with the event.
-Commands are function that given a state of a context/aggregate and some parameters will return a pari of a new state of the context/aggregate and the list of the events that, processed, will return such state. </p>
+<em>Contexts</em>: There is no specific id for a context so we just assume that a single instance and a single zero (initial state) instance exist for any <em>Context</em>.</p>
+<p>Note: &quot;Contexts&quot;  will be not used anymore. A plain aggregate with a specific constand Id can substitute it (as in example 15). From here only &quot;aggregates&quot; (event sourced objects with an Id) will be mentioned.</p>
+<p><em>Aggregates</em>: Many instances of an aggregate type can exist at a time so we need an Id for each instance represented by a Guid. The initial state for any aggregate is its initial snapshot in the event store.</p>
+<p>An aggregate implements at least one transformation members that will return a new instance of it or an error (using the Result data type) i.e. it returns <code> Result&lt;A, string&gt;</code> 
+An aggregate must also specify as static members ways to serialize and deserialize and the stream name and the snapshot interval. Examples of aggregates are given in the sample applications.
+An aggregate must implement the <em>Aggregate</em> interface based on a generic type that can be string or byte[] depending on the serialization method used. Json serialization will use string while binary serialization will use byte[].</p>
+<p>Transformative members can be associated with events that, when processed, will return a new instance of the aggregate with a new state.
+Commands are functions that given the current state of an aggregate and some parameters will return a pair of a new state of the aggregate and the list of events that, processed, will return such state.</p>
+<p>Note: Beware that there are a specific commad type for Aggregates which is called AggregateCommand. See the definition in the source code.</p>
 <p>Commands and events can be easily implemented using Discriminated Union types implementing the <em>Command</em> and the <em>Event</em> interfaces respectively.</p>
-<p>This document is a guide to the Sharpino library. It is a work in progress.
-Focus on the following topics:
-Contexts, events, commands, service application layer, Event Store.</p>
+<p>Note: events must be serializable and deserialisable. Those functions use a generic serialization type (string or byte[]) in the same way as for aggregates.</p>
+<p>Important note: many examples use the cross-aggregate transaction feature that has some advantages by allowing bidirectional references between aggregates making the navigation easier from any side. However, by adopting an in memory materialized view approach (see example 15) the need for cross-aggregate transactions is greatly reduced as the &quot;navigation&quot; can be done using the materialized view (or detailed view).</p>
+<p>This document is a small guide to the Sharpino library (note: I cannot ensure that this is always up to date, read the examples starting from the end).
+Focus on the following topics:</p>
 <h2 id="the-sample-application-1"><a class="header" href="#the-sample-application-1">The sample application 1.</a></h2>
 <p>This application will be deprecated as it fails in showing the main features of the library.</p>
 <h2 id="sample-application-2-booking-system-for-seats-in-a-stadium"><a class="header" href="#sample-application-2-booking-system-for-seats-in-a-stadium">Sample application 2. Booking system for seats in a stadium</a></h2>
-<p>Contexts represent rows. Some constraints are applied to the rows. The context is responsible for the seats. The seats are associated with the rows.</p>
+<p>Contexts represent rows. Some constraints are applied to the rows. The context is responsible for the seats. The seats are associated with the rows.
+Note: there is a better way to implement this application using aggregates for the rows (see application 3).</p>
 <h2 id="sample-application-3-booking-system-for-seats-in-a-stadium"><a class="header" href="#sample-application-3-booking-system-for-seats-in-a-stadium">Sample application 3. Booking system for seats in a stadium</a></h2>
-<p>The same as application 2 but where rows are aggregates (so I can have any number of instances of seat rows). The application uses the SAFE based stack based template son can publish the system as a rest service using the Fable Remoting library.</p>
+<p>The same as application 2 but where rows are aggregates (so I can have any number of instances of seat rows). </p>
 <h2 id="sample-application-6-pub-system"><a class="header" href="#sample-application-6-pub-system">Sample application 6. Pub system</a></h2>
 <p>Objects: Dishes, Ingredients, and Suppliers.</p>
 <h2 id="sample-application-7-shopping-cart"><a class="header" href="#sample-application-7-shopping-cart">Sample application 7. Shopping cart</a></h2>
 <p>Objects Shopping Cart, Goods, a container with references to the existing goods. Note: the container (&quot;context&quot;) can be ditched. the applications has two different versions: one using binary serialization and another using text/json serialization</p>
 <h2 id="sample-application-8-tycoon-transport"><a class="header" href="#sample-application-8-tycoon-transport">Sample application 8. Tycoon Transport</a></h2>
 <p>Partial implementation of the problem described here:
-<a href="https://github.com/trustbit/exercises/blob/master/transport-tycoon-1.md">Transport Tycoon</a></p>
+<a href="https://github.com/trustbit/exercises/blob/master/transport-tycoon-1.md">Transport Tycoon</a>
+Note: this will be revied by moving from bidirectional references to unidirectional references and materialized views/details. </p>
 <h2 id="sample-application-9-classes-teachers-students-reservations-items"><a class="header" href="#sample-application-9-classes-teachers-students-reservations-items">Sample application 9. Classes, Teachers, Students, Reservations, Items</a></h2>
 <p>Classes, techer, students. Introducing the problem of course creation and
 cancellation fees showing transactions on multiple objects. (i.e. course, students, teachers, balance...).
 An experimental feature is related to &quot;cross aggregates constraints&quot; passed
 as lambda expressions to a command: a command may query the state of objects
-that are not directly related to the command </p>
+that are not directly related to the command. </p>
 <h2 id="sample-application-10--multiple-commands-of-any-type"><a class="header" href="#sample-application-10--multiple-commands-of-any-type">Sample application 10.  Multiple commands of any type</a></h2>
-<p>Creating transactions of multiple commands of any type.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="context"><a class="header" href="#context">Context</a></h1>
-<p>I am representing in this example the Todo entity and a Todo context</p>
-<p>This is the Todo entity definition:</p>
-<pre><code class="language-FSharp">    type Todo =
-        {
-            Id: Guid
-            CategoryIds : List&lt;Guid&gt;
-            TagIds: List&lt;Guid&gt;
-            Description: string
-        }
-    type Todos =
-        {
-            todos: List&lt;Todo&gt;
-        }
-        with
-            static member Zero =
-                {
-                    todos = []
-                }
-</code></pre>
-<p>The Todos context needs also some other members (to handle the stream name, the serialize/deserialize functions, and the snapshots interval...)</p>
-<p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample.Shared/Entities.fs">TodosModel.fs</a></p>
+<p>Thi example shows a way to execute multiple commands of any type in a single transaction. 
+Note: it not advised to abuse this feature as a proper design is better and safer in using transaction scoped to a single aggregate type. However, in some cases this may be useful and is a fair alterative to the user of &quot;sagas&quot; or
+&quot;process managers&quot; or &quot;orchestrators&quot; or &quot;compensators&quot; (which are supported anyway on the command side).</p>
+<h2 id="sample-application-11-students-and-courses-some-performances-meausurements"><a class="header" href="#sample-application-11-students-and-courses-some-performances-meausurements">Sample application 11. Students and Courses. Some performances meausurements</a></h2>
+<p>The examples check the performances by a creating massive number of students and courses.
+If RabbitMQ is installed and running it is possible to use it as event bus to decouple the event store from the read model update process.</p>
+<p>To check with RabbitMQ just run with the following command line:
+<code>dotnet run --configuration:RabbitMQ</code></p>
+<h2 id="sample-application-12-use-of-binary-serialization"><a class="header" href="#sample-application-12-use-of-binary-serialization">Sample application 12. Use of binary serialization</a></h2>
+<p>The serialization library provided with the framework is based on FsPiclker and supports both binary and json (even though any library can be used on the application side). This time binary is used.</p>
+<h2 id="sample-application-13-reservation-pattern"><a class="header" href="#sample-application-13-reservation-pattern">Sample application 13. Reservation pattern</a></h2>
+<p>In theory constraints can be voided by concurrent commands despite the use of optimistic concurrency control.
+To face this possibility a reservation pattern can be used.</p>
+<h2 id="sample-application-14"><a class="header" href="#sample-application-14">Sample application 14.</a></h2>
+<p>Using FSharp.SystemTextJson for serialization/deserialization instead of the built in json serializer.
+Using type Id for any aggregate instead of Guid (primitive obsession).
+By facing primitive obsession it is possible to get better type safety and avoid errors due to wrong Ids usage.</p>
+<h2 id="sample-application-15"><a class="header" href="#sample-application-15">Sample application 15.</a></h2>
+<p>Use of details (materialized views) instead of cross-aggregate transactions.
+Using refreshable details to  make the details able to be cached and refreshed when needed, i.e. when any event related to the streams that it depends on is committed.</p>
+<p>General note: more often than note the examples can be executed using rabbitmq message sending.
+Check the .fsproj files and if the RabbitMQ configuration is present it is possible to run the example using RabbitMQ as event bus by the command line below:
+<code>dotnet run --configuration:RabbitMQ</code></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="contexts"><a class="header" href="#contexts">Contexts</a></h1>
+<p>=<em>This content is deprecated</em>: instead of contexts use aggregates (see sample applications 2 and 3).</p>
 <p>A context is a class meant to be event-sourced, i.e., associated with a stream of events.
 To build the state of a context using stored events, we use the <em>evolve</em> function.</p>
 <p><em>events</em> are associated with members of the cluster that end up in Update/Delete/Remove of some entity</p>
@@ -285,6 +292,8 @@ The <em>Process</em> member of the event is implemented by calling the related c
                         x.RemoveTodo g
 
 </code></pre>
+<p>Note: by overloading the members of an aggregates may make the association between events and members less clear as there is no valid way to express members overloding in the event types directly (would be an invalid DU).
+A workaround would be easy (create a specific DU for the parameters to express the overloading for example)</p>
 <p>Source code:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Todos/Events.fs">Events.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
 <p>(this section needs an update as we have a new )</p>
@@ -294,206 +303,373 @@ For example, the &quot;under&quot; of AddTodo is the related RemoveTodo (see nex
 <p>In the following code we can see the signature for any state viewers for any context or aggregate. State viewer corresponds to read models: they will provide the current state of aggregate or context. Typically, that state may come from a cache, from the event store (by processing the events) or from a topic of Kafa (or eventually any other message/event broker, even though I haven't implemented completed any of them yet).</p>
 <pre><code class="language-FSharp">
     type StateViewer&lt;'A&gt; = unit -&gt; Result&lt;EventId * 'A, string&gt;
-    type AggregateViewer&lt;'A&gt; = Guid -&gt; Result&lt;EventId * 'A,string&gt;
-    
+    type AggregateViewer&lt;'A&gt; = AggregateId -&gt; Result&lt;EventId * 'A,string&gt;
+   
+   
     type Aggregate&lt;'F&gt; =
-        abstract member Id: Guid // use this one to be able to filter related events from same string
+        abstract member Id: AggregateId 
         abstract member Serialize: 'F
     
     type Event&lt;'A&gt; =
         abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
 
+    type CommandUndoer&lt;'A, 'E&gt; =  Option&lt;'A -&gt; StateViewer&lt;'A&gt; -&gt; Result&lt;unit -&gt; Result&lt;List&lt;'E&gt;, string&gt;, string&gt;&gt;
+    type AggregateCommandUndoer&lt;'A, 'E&gt; = Option&lt;'A -&gt; AggregateViewer&lt;'A&gt; -&gt; Result&lt;unit -&gt; Result&lt;'A * List&lt;'E&gt;, string&gt;, string&gt;&gt;
     type Command&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
         abstract member Execute: 'A -&gt; Result&lt;'A * List&lt;'E&gt;, string&gt;
-        abstract member Undoer: Option&lt;'A -&gt; StateViewer&lt;'A&gt; -&gt; Result&lt;unit -&gt; Result&lt;List&lt;'E&gt;, string&gt;, string&gt;&gt;
+        abstract member Undoer: CommandUndoer&lt;'A, 'E&gt;
         
     type AggregateCommand&lt;'A, 'E when 'E :&gt; Event&lt;'A&gt;&gt; =
         abstract member Execute: 'A -&gt; Result&lt;'A * List&lt;'E&gt;, string&gt;
-        abstract member Undoer: Option&lt;'A -&gt; AggregateViewer&lt;'A&gt; -&gt; Result&lt;unit -&gt; Result&lt;List&lt;'E&gt;, string&gt;, string&gt;&gt;
-
-
+        abstract member Undoer: AggregateCommandUndoer&lt;'A, 'E&gt;
 </code></pre>
 <p>Example:</p>
-<pre><code class="language-FSharp">    type TodoCommand =
-        | AddTodo of Todo
-        | RemoveTodo of Guid
-
-        interface Command&lt;TodosContext, TodoEvent&gt; with
-            member this.Execute (x: TodosContext) =
+<pre><code class="language-FSharp">
+    type CourseEvents =
+        | StudentEnrolled of StudentId
+        | StudentUnenrolled of StudentId
+        | Renamed of string
+        interface Event&lt;Course&gt; with
+            member this.Process (course: Course) =
                 match this with
-                | AddTodo t -&gt; 
-                    match x.AddTodo t with
-                    | Ok _ -&gt; [TodoAdded] |&gt; Ok
-                    | Error x -&gt; x |&gt; Error
-                | RemoveTodo g -&gt;
-                    match
-                        x.RemoveTodo g with
-                        | Ok _ -&gt; [TodoEvent.TodoRemoved g] |&gt; Ok
-                        | Error x -&gt; x |&gt; Error
+                | StudentEnrolled studentId -&gt; course.EnrollStudent studentId
+                | StudentUnenrolled studentId -&gt; course.UnenrollStudent studentId
+                | Renamed name -&gt; course.Rename name
+       
+        static member Deserialize (x: string): Result&lt;CourseEvents, string&gt; =
+            try
+                JsonSerializer.Deserialize&lt;CourseEvents&gt; (x, jsonOptions) |&gt; Ok
+            with
+            | ex -&gt;
+                Error (ex.Message)
+        member this.Serialize =
+            JsonSerializer.Serialize (this, jsonOptions)
+</code></pre>
+<p>A command returns returns a new state and a list of on e or more events:</p>
+<pre><code class="language-fsharp">    type CourseCommands =
+        | EnrollStudent of StudentId
+        | UnenrollStudent of StudentId
+        | Rename of string
+        interface AggregateCommand&lt;Course, CourseEvents&gt; with
+            member this.Execute (course: Course) =
+                match this with
+                | EnrollStudent studentId -&gt;
+                    course.EnrollStudent studentId
+                    |&gt; Result.map (fun s -&gt; (s, [ StudentEnrolled studentId]))
+                | UnenrollStudent studentId -&gt;
+                    course.UnenrollStudent studentId
+                    |&gt; Result.map (fun s -&gt; (s, [ StudentUnenrolled studentId]))
+                | Rename name -&gt;
+                    course.Rename name
+                    |&gt; Result.map (fun s -&gt; (s, [ Renamed name]))    
             member this.Undoer = None
-</code></pre>
-<p>A command may return more than one event:</p>
-<pre><code class="language-FSharp">    type TodoCommand =
-        [...]
-        | Add2Todos of Todo * Todo
-        interface Command&lt;TodosCluster, TodoEvent&gt; with
-            member this.Execute (x: TodosContext) =
-            [...]
-            match this with
-            | Add2Todos (t1, t2) -&gt; 
-                let evolved =
-                    fun () -&gt;
-                    [TodoEvent.TodoAdded t1; TodoEvent.TodoAdded t2]
-                    |&gt; evolveUNforgivingErrors x
-                match evolved() with
-                    | Ok _ -&gt; [TodoEvent.TodoAdded t1; TodoEvent.TodoAdded t2] |&gt; Ok
-                    | Error x -&gt; x |&gt; Error
-            member this.Undoer
+
+
+Any command must ensure that it will return Result.OK (and therefore, one or more events) only if the events to be returned, when processed on the current state, return an Ok result, i.e. a valid state (and no error). 
+
+There are two version of the _evolve_: one tolerates inconsistent events and another one will fail in case just an event will return an error.
+The way the evens are stored in the event store ensures that no stored event will return inconsistent state when processed. Therefore future releases of the library will probably use by default the unforgiving version of the _evolve_ function.
+Currently the policy is using the &quot;forgiving&quot; verion only as a fallback, by logging the error and skipping the inconsistent events.  
+
+## Undoer
+
+An undoer would be useful in case the only way to make two streams consistent is to &quot;rollback&quot; the effect of a command on one stream if the command on another stream fails.
+
+(this should be handled at the application level, though)
+
+Unfortunately there is no  simple way to express the undoer, yet. The good news is that an undoer is optional, and generally is set to None.
+
+```fsharp
+    member this.Undoer =
+        match this with
+        | EnrollStudent studentId -&gt;
+            (
+                fun (course: Course) (viewer: AggregateViewer&lt;Course&gt;) -&gt;
+                    result {
+                        return 
+                            fun () -&gt;
+                                result {
+                                    let! _, state = viewer course.Id.Id
+                                    let result =
+                                        state.UnenrollStudent studentId
+                                        |&gt; Result.map (fun s -&gt; s, [ StudentUnenrolled studentId])
+                                    return! result
+                                }
+                    }    
+            )
+            |&gt; Some
+        | UnenrollStudent studentId -&gt;
+            (
+                fun (course: Course) (viewer: AggregateViewer&lt;Course&gt;) -&gt;
+                    result {
+                        return 
+                            fun () -&gt;
+                                result {
+                                    let! _, state = viewer course.Id.Id
+                                    let result =
+                                        state.EnrollStudent studentId 
+                                        |&gt; Result.map (fun s -&gt; s, [StudentEnrolled studentId])
+                                    return! result
+                                }
+                    } 
+            )
+            |&gt; Some
+        | Rename _ -&gt;
+            None
 
 </code></pre>
-<p>Any command must ensure that it will return Result.OK (and therefore, one or more events) only if the events to be returned, when processed on the current state, return an Ok result, i.e. a valid state (and no error). </p>
-<p>There are two version of the <em>evolve</em>: one tolerates inconsistent events and another one will fail in case just an event will return an error.
-The way the evens are stored in the event store ensures that no stored event will return inconsistent state when processed. Therefore future releases of the library will probably use by default the unforgiving version of the <em>evolve</em> function.</p>
-<h2 id="undoer"><a class="header" href="#undoer">Undoer</a></h2>
-<p>Here is an example of the use of an undoer for a command:</p>
-<pre><code class="language-fsharp">module CartCommands =
-    type CartCommands =
-    | AddGood of Guid * int
-    | RemoveGood of Guid
-        interface AggregateCommand&lt;Cart, CartEvents&gt; with
-            member this.Execute (cart: Cart) =
-                match this with
-                | AddGood (goodRef, quantity) -&gt; 
-                    cart.AddGood (goodRef, quantity)
-                    |&gt; Result.map (fun s -&gt; (s, [GoodAdded (goodRef, quantity)]))
-                | RemoveGood goodRef -&gt;
-                    cart.RemoveGood goodRef
-                    |&gt; Result.map (fun s -&gt; (s, [GoodRemoved goodRef]))
-            member this.Undoer = 
-                match this with
-                | AddGood (goodRef, _) -&gt; 
-                    Some 
-                        (fun (cart: Cart) (viewer: AggregateViewer&lt;Cart&gt;) -&gt;
-                            result {
-                                let! (i, _) = viewer (cart.Id) 
-                                return
-                                    fun () -&gt;
-                                        result {
-                                            let! (j, state) = viewer (cart.Id)
-                                            let! isGreater = 
-                                                (j &gt;= i)
-                                                |&gt; Result.ofBool (sprintf &quot;execution undo state '%d' must be after the undo command state '%d'&quot; j i)
-                                            let result =
-                                                state.RemoveGood goodRef
-                                                |&gt; Result.map (fun _ -&gt; [GoodRemoved goodRef])
-                                            return! result
-                                        }
-                                }
-                        )
-                | RemoveGood goodRef -&gt;
-                    Some
-                        (fun (cart: Cart) (viewer: AggregateViewer&lt;Cart&gt;) -&gt;
-                            result {
-                                let! (i, state) = viewer (cart.Id) 
-                                let! goodQuantity = state.GetGoodAndQuantity goodRef
-                                return
-                                    fun () -&gt;
-                                        result {
-                                            let! (j, state) = viewer (cart.Id)
-                                            let! isGreater = 
-                                                // this check depends also on the number of events generated by the command (i.e. the j &gt;= (i+1) if command generates 2 event)
-                                                (j &gt;= i)
-                                                |&gt; Result.ofBool (sprintf &quot;execution undo state '%d' must be after the undo command state '%d'&quot; j i)
-                                            let result =
-                                                state.AddGood (goodRef, goodQuantity)
-                                                |&gt; Result.map (fun _ -&gt; [GoodAdded (goodRef, goodQuantity)])
-                                            return! result
-                                        }
-                                }
-                        )
-</code></pre>
+<p>The meaning is:
+if a command is already executed and the related events are stored, we have a way to ask to that command to provide a function, that can be executed in the future to return another function that when executed will return a result with the list of events that can &quot;undo&quot; the effect of the command itself.</p>
 <p>This is the abstract definition of an of the undoer of an aggregate.</p>
-<pre><code class="language-FSharp">        abstract member Undoer: Option&lt;'A -&gt; AggregateViewer&lt;'A&gt; -&gt; Result&lt;unit -&gt; Result&lt;List&lt;'E&gt;, string&gt;, string&gt;&gt;
+<pre><code class="language-FSharp">    type AggregateCommandUndoer&lt;'A, 'E&gt; = Option&lt;'A -&gt; AggregateViewer&lt;'A&gt; -&gt; Result&lt;unit -&gt; Result&lt;'A * List&lt;'E&gt;, string&gt;, string&gt;&gt;
+
 </code></pre>
 <p>The meaning is:
 Extract from the current state of the aggregate useful info for a future &quot;rollback&quot;/&quot;undo&quot; and return a function that, when applied to the current state of the aggregate, will return the events that will &quot;undo&quot; the effect of this command.</p>
-<p>You may need undoers if the event store doesn't support multiple stream transactions or if you will use a distributed architecture with many nodes handling different streams of events.
+<p>You may need undoers if the eventstore doesn't support multiple stream transactions or if you will use a distributed architecture with many nodes handling different streams of events.
 By using PostgresSQL as event store you can just set the undoer to None as the event store will handle the cross-streams transactions for us. </p>
 <p><a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Tags/Commands.fs">Commands.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
 <p>An application service layer implements the logic and makes business logic calls, or queries, available.
 Here is one of the simplest examples of an entry for a service involving a single context, by building and running an AddTag command.</p>
-<pre><code class="language-FSharp">        member this.AddTag tag =
+<p>Initializing the application service layer means providing the correct &quot;viewers&quot; for the streams (which can be based on the event store, mediated by the cache, or can be based on an event broker listener, as in the RabbitMq provided examples) plus some compound viewers if needed (i.e. to read the state of all instances of an aggregate type) and a &quot;messageSenders&quot; object that can be passed to the command handler to let it send messages to the event broker (if any) in a fire and forget way:</p>
+<pre><code class="language-FSharp">
+    type CourseManager
+        (
+            eventStore: IEventStore&lt;string&gt;,
+            courseViewer: AggregateViewer&lt;Course&gt;,
+            studentViewer: AggregateViewer&lt;Student&gt;,
+            messageSenders: MessageSenders,
+            allStudentsAggregateStatesViewer: unit -&gt; Result&lt;(Definitions.EventId * Student) list, string&gt;
+        )
+
+</code></pre>
+<p>A member of the service to provide the initialization of an aggregate:</p>
+<pre><code class="language-FSharp">        member this.AddStudent (student: Student) =
+            result
+                {
+                    return!
+                        runInit&lt;Student, StudentEvents, string&gt;
+                        eventStore
+                        messageSenders
+                        student
+                }
+</code></pre>
+<p>A member of the service to retrieve a student via its id</p>
+<pre><code class="language-FSharp">
+        member this.GetStudent (id: StudentId)  =
+            result
+                {
+                    let! _, student = studentViewer id.Id
+                    return student
+                }
+</code></pre>
+<p>Note: by using the typed Id, we need to extract the proper Guid Id via the Id property if using the studentViewer.</p>
+<p>An example using two commands related to two streams. The example assume that we prefer that the enrollments are stored in both the Student aggregate and the Course aggregate (i.e. bidirectional references). So we need to run two commands in a single transaction to preserve consistency.:</p>
+<pre><code class="language-fsharp">        member this.EnrollStudentToCourse (studentId: StudentId) (courseId: CourseId) =
+            result
+                {
+                    let addCourseToStudentEnrollments = StudentCommands.Enroll courseId
+                    let addStudentToCourseEnrollments = CourseCommands.EnrollStudent studentId
+                    return!
+                        runTwoAggregateCommands
+                            studentId.Id
+                            courseId.Id
+                            eventStore
+                            messageSenders
+                            addCourseToStudentEnrollments
+                            addStudentToCourseEnrollments
+                }
+</code></pre>
+<p>In the following example, the enrollment is a single object type that register enrollments in a single stream (a more conventional approach):</p>
+<pre><code class="language-fsharp">        member this.CreateEnrollment (studentId: StudentId) (courseId: CourseId) =
             result {
-                let! result =
-                    tag
-                    |&gt; AddTag
-                return result 
+                let! enrollments = this.GetOrCreateEnrollments()
+                do! 
+                    enrollments.Enrollments
+                    |&gt; List.exists (fun e -&gt; e.StudentId = studentId &amp;&amp; e.CourseId = courseId)
+                    |&gt; not
+                    |&gt; Result.ofBool &quot;Student is already enrolled in this course.&quot;
+
+                let enrollmentItem = 
+                    { CourseId = courseId
+                      StudentId = studentId
+                      EnrollmentDate = DateTime.UtcNow }
+                    
+                let studentDetailsKey =  DetailsCacheKey (typeof&lt;RefreshableStudentDetails&gt;, studentId.Id)
+                let _ =
+                    DetailsCache.Instance.UpdateMultipleAggregateIdAssociationRef [|courseId.Id|] studentDetailsKey ((TimeSpan.FromMinutes 10.0) |&gt; Some)
+                    
+                let command = EnrollmentCommands.AddEnrollment enrollmentItem
+                let! result = 
+                    runAggregateCommand&lt;Enrollments, EnrollmentEvents, string&gt;
+                        enrollmentId.Id
+                        eventStore
+                        messageSenders
+                        command
+                return result
             }
+
 </code></pre>
-<p>The service layer sends commands to the Command Handler so that this one can run it producing and storing the related events, returning the EventStore Ids of the stored events.</p>
-<h2 id="running-two-commands-to-different-clusters"><a class="header" href="#running-two-commands-to-different-clusters">Running two commands to different clusters</a></h2>
-<p>This code removes the tag with any reference to it. It builds two commands and makes the repository process them at the same time.
-This code removes a tag and any reference to it.</p>
-<pre><code class="language-FSharp">    member this.removeTag id =
-        ResultCE.result {
-            let removeTag = TagCommand.RemoveTag id
-            let removeTagRef = TodoCommand.RemoveTagRef id
-            return! runTwoCommands&lt;Tag, Todo, TagEvent, TodoEvent&gt; eventStore eventBroker removeTag removeTagRef
-        }
-</code></pre>
-<p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/App.fs">App.fs</a></p>
+<p>Note: the examples show the complexity of handling cache of the details. This aspect wil be covered up and hopefully simplified in future version of this documentation. Just note that any existing RefreshableStudentDetails object need to be notified that a new enrollment is created so that it can refresh its state when needed.</p>
+<p>The quoted code is related to example 15.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="command-handler"><a class="header" href="#command-handler">Command Handler</a></h1>
 <p>The Command Handler has the responsibility of running the commands which means doing the following steps:</p>
 <ul>
 <li>get the state/s of the aggregate/s invoved on the command.</li>
 <li>try to run commands on that states, </li>
 <li>try to store the resulting events,</li>
-<li>send the events to the event broker,</li>
-<li>making periodic snapshots, according to the SnapshotsInterval.
-Those steps are enveloped by a result computation expression expressing explicitly the &quot;happy path&quot; and implicitly the &quot;error path&quot; using monading
+<li>send the events to the event broker/message bus (if any),</li>
+<li>make periodic snapshots, according to the SnapshotsInterval.
+Those steps are enveloped by a result computation expression expressing explicitly the &quot;happy path&quot; and implicitly the &quot;error path&quot; using monadic
 operators.
 Note: The only real success occurs after the event store is stored.
 The delivery of the messages does not affect the result of running the command. 
-Any message listener can implement a &quot;fallback&quot; policy so thy they can be rehydrated by a call to the event store to restore the correct state of the aggregate.</li>
+Any message listener can/should implement a &quot;fallback&quot; policy so thy they can be rehydrated by a call to the event store to restore the correct state of the aggregate.</li>
 </ul>
 <p><a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/CommandHandler.fs">CommandHandler.fs</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="eventstore-database"><a class="header" href="#eventstore-database">EventStore (database)</a></h1>
-<p>An event-store, stores and retrieves events and snapshots related to each single context.</p>
+<p>An eventstore stores and retrieves events and snapshots related to each single context.
+There are plenty of members to store and retrieve events and snapshots in different ways. Particularly some of them may use explicitly the Task return type and cancellation token. The standard behavior is still the use of a globally configured timeout.</p>
+<p>Some (but not all) the commandHandler functions use the Task and optiona cancellation token as well. The goal is going for a full TaskResult based Api with optional cancellation token in the next major release.</p>
+<p>The Postgres (json and binary) implementations use optimistic concurrency by checking the eventId before storing new events.</p>
+<p>The inmemory implementation is useful for testing and prototyping.</p>
 <p>An example of a storage implementation in Postgres: 
 <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Lib/PgEventStore.fs">PgEventStore.fs</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="refactoring-aggregates"><a class="header" href="#refactoring-aggregates">Refactoring Aggregates</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="refactoring-aggregates-via-upcasting"><a class="header" href="#refactoring-aggregates-via-upcasting">Refactoring Aggregates via upcasting</a></h1>
 <p>If you need to change an aggregate (or context) for new requirements, you need to refactor the aggregate so that it can handle the old and the new formats.</p>
-<p>The technique is based on being able to create an aggregate that mimics the old one and an upcast function from the old one to the new one.</p>
-<p>It is convenient to do a bulk upcast of all the existing aggregates by making a snapshot of all of them.
-The new snapshot will use the new aggregate format, so the definition of the old aggregate will be unnecessary after the bulk upcast and resnapshot.</p>
+<p>An upcasting technique is based on being able to create an aggregate that mimics the old one and an upcast function to convert from the old one to the new one.</p>
+<p>It is convenient to do a bulk upcast of all the existing aggregates by making a snapshot of all of them to be able to drop the old aggregate definition from the code.
+The new snapshots will use the new aggregate format, so the definition of the old aggregate will be unnecessary after the bulk upcast and resnapshot.</p>
 <p>To do an upcast, you can create a shadow aggregate that mimics the old one in the same module of the current one, provided that the module is defined as rec (recursive).</p>
 <p>The mechanism is based on handling the failure of the Deserialization by using as fallback the Deserialization using the old aggregate and then the upcast function to the new one.</p>
 <p>Note: it may depend on the serialization library and its configuration as it is not always true that you can deserialize the old aggregate changing its target type with a different name than the original one. </p>
 <p>The provided examples are all using FSPickler configured in a way that it allows the upcast from the old aggregate with a different name to the new one.</p>
+<p>Quick example of an upcast from an old aggregate to a new one:</p>
+<p>The current version of the Course aggregate is:</p>
+<pre><code class="language-fsharp">type Curse =
+    {
+        Id: Guid
+        Name: string
+        Students: List&lt;Guid&gt;
+        MaxNumberOfStudents: int
+    }
+</code></pre>
+<p>We want to add a new field <em>Teachers</em> to the aggregate so it will become:</p>
+<pre><code class="language-fsharp">type Course =
+    {
+        Id: Guid
+        Name: string
+        Students: List&lt;Guid&gt;
+        MaxNumberOfStudents: int
+        Teachers: List&lt;Guid&gt;
+    }
+</code></pre>
+<p>We want to be able to read the old version of the aggregate and upcast it to the new one. So we redefine a type <em>Course001</em> that mimics the old version of the aggregate:</p>
+<pre><code class="language-fsharp">type Course001 =
+    {
+        Id: Guid
+        Name: string
+        Students: List&lt;Guid&gt;
+        MaxNumberOfStudents: int
+    }
+</code></pre>
+<p>We instrument the course001 with deserialization and upcast function</p>
+<pre><code class="language-fsharp">type Course001 =
+    {
+        Id: Guid
+        Name: string
+        Students: List&lt;Guid&gt;
+        MaxNumberOfStudents: int
+        Teachers: List&lt;Guid&gt;
+    }
+
+    with
+        static member Deserialize x =
+            jsonPSerializer.Deserialize&lt;Curse001&gt; x
+        member this.Upcast(): Course =
+            {   Name = this.Name
+                Id = this.Id
+                Students = this.Students
+                MaxNumberOfStudents = this.MaxNumberOfStudents
+                Teachers = []
+            }
+
+Finallly we make sure that the current deserialize function of the Course aggregate can handle both the old and the new format:
+```fsharp 
+    static member Deserialize(x: string): Result&lt;Course, string&gt; =
+        let firstTry = jsonPSerializer.Deserialize&lt;Course&gt; x
+        match firstTry with
+        | Ok x -&gt; x |&gt; Ok
+        | Error e -&gt;
+            let secondTry = jsonPSerializer.Deserialize&lt;Curse001&gt; x
+            match secondTry with
+            | Ok x -&gt; x.Upcast() |&gt; Ok
+            | Error e1 -&gt;
+                Error (e + &quot; &quot; + e1)
+</code></pre>
+<p>Examples using FSharp.SystemTextJson are also privided. 
+It's important to test any library to be sure that the &quot;mimic old type&quot; deserialization and upcast works as in this example.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
-<p>A simple way to test multiple configuration is base on passing the different instances of the application (for instance one is using the in memory event store and another one is using the postgres event store). 
-A simple extension to Expecto is provided introducint the &quot;multipleTestCase&quot; function. Here it is used to test also a migration between aggregate versions</p>
-<pre><code class="language-FSharp">
-        multipleTestCase &quot;test something &quot; versions &lt;| fun (ap, apUpgd, migrator)  -&gt;
-            let _ = ap._reset()
-
-            // test something on ap, which is the &quot;initial version&quot; 
-            // of the application
-            .....
-
-            // then migrate from &quot;ap&quot; version to apUpgd version 
-            // using its migrator function
-
-            let migrated = migrator()
-            Expect.isOk migrated &quot;should be ok&quot;
-
-            // test something on apUpgd, which is the &quot;upgraded version&quot; of the application
+<p>There are plenty of tests in the examples folders.
+of the Sharpino repository.
+the structure is based on using a setup that wipe the event store and the cache before each test case. The test must be run in a sequence to avoid interference between them because of the state of the event store and the cache.o</p>
+<p>An extension of Expecto provide a &quot;multipleTestCase` function that makes the test parametric.</p>
+<p>A particular case of using the <em>multipleTestCase</em> is to run the same test case with different event store implementations (i.e. inmemory, Postgres json, Postgres binary eventually in conjuction with Rabbitmq).</p>
+<p>A particular parameter needed to test by using RabbitMQ as event broker is to run the tests in sequence with some delay to allow the propagation of the messages between the different consumers. The delay parameter will so depend on which configuration is under test.</p>
+<p>An example of setting &quot;instances&quot; (which should mean 'parameters') to feed the test cases is the following:</p>
+<pre><code class="language-FSharp">let instances =
+    [
+        #if RABBITMQ
+            (fun () -&gt; setUp pgEventStore),  ItemManager(pgEventStore, rabbitMqItemStateViewer, rabbitMqReservationStateViewer, messageSenders), 100
+        #else
+            (fun () -&gt; setUp(pgEventStore)), ItemManager(pgEventStore, pgStorageItemViewer, pgStorageReservationViewer), 0
+            (fun () -&gt; setUp(memEventStore)),  ItemManager(memEventStore, memoryStorageItemViewer, memoryStorageReservationViewer), 0
+        #endif
+    ]
+</code></pre>
+<p>That configuration use two (or three if Rabbitmq is defined) different event stores and viewers to run the same test cases.</p>
+<p>In the examples we see that there exist &quot;viewers&quot; based on the event store and based on Rabbitmq consumers.</p>
+<p>Any &quot;viewer&quot; based on the eventStore (which uses also the cache in between) has the following signature:</p>
+<pre><code class="language-FSharp">    type AggregateViewer&lt;'A&gt; = AggregateId -&gt; Result&lt;EventId * 'A,string&gt;
+</code></pre>
+<p>By using a viewer based on the event store we can rely on this function present 
+in the command handler:</p>
+<pre><code class="language-FSharp">    let inline getAggregateStorageFreshStateViewer&lt;'A, 'E, 'F
+        when 'A :&gt; Aggregate&lt;'F&gt; 
+        and 'A : (static member Deserialize: 'F -&gt; Result&lt;'A, string&gt;) 
+        and 'A : (static member StorageName: string) 
+        and 'A : (static member Version: string) 
+        and 'E :&gt; Event&lt;'A&gt;
+        and 'E: (static member Deserialize: 'F -&gt; Result&lt;'E, string&gt;)
+        &gt;
+        (eventStore: IEventStore&lt;'F&gt;) 
+        =
+            fun (id: Guid) -&gt;
+                result
+                    {
+                        let! (eventId, result) = getAggregateFreshState&lt;'A, 'E, 'F&gt; id eventStore
+                        return
+                            (eventId, result :?&gt; 'A) 
+                    }
+</code></pre>
+<p>Note: a critical point is that given that the cache layer is type agnostic, some cast/boxing is needed to return the proper type of the aggregate. It seems that this use is safe enough as long as the following constraints is satisfied:
+whenever an aggregate of type 'A is stored in the event store, it is retrieved as type 'A as well. This aspect should be invisible to the application using the library but, still, it worth mentioning it.
+Also note that the box/unboxing operations may have a performance impact, but that is overcomed by the empirical evidence of the improvement given by the cache layer.</p>
+<p>A viewer based on Rabbitmq deserves a different chapter. However the provided examples are based on using some blueprint to facilitate handling the aggregate states of a certains stream as a ConcurrentDictionary:</p>
+<pre><code class="language-FSharp">    ConcurrentDictionary&lt;AggregateId, (EventId * 'A)
 
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="rabbitmq"><a class="header" href="#rabbitmq">Rabbitmq</a></h1>
-<p>For each aggregate we can define a &quot;consumer&quot; that is able to listen to the events of that state</p>
-<p>Some tests are instrumented to be able to test this configuration by adding some artificial delays in those tests to allow the propagation of the messages. Those examples gets the state of the involved aggregates by those consumers instead of accessing the event store. RabbitMq must be running on localhost. (in my configuration it's just about running rabbitmq-server. It must of course be ok running it on docker).</p>
+<p>Many examples based on RabbitMq use such blueprints to implement a &quot;Consumer&quot; thet, among all, provide a viewer function that can be used in the service layer.</p>
+<pre><code class="language-FSharp">        member this.GetAggregateState (id: AggregateId) =
+            if (statePerAggregate.ContainsKey id) then
+                statePerAggregate.[id]
+                |&gt; Result.Ok
+            else
+                Result.Error &quot;No state&quot; 
+
+</code></pre>
+<p>In essence: by instrumenting any stream with RabbitMq consumer, and by also instrumenting the tests to launch the consumers as service, it will be possible to use and test the viewers based on RabbitMq.</p>
 
                     </main>
 

@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_1.html"><strong aria-hidden="true">2.</strong> Entities</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">3.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">4.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">5.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html" class="active"><strong aria-hidden="true">6.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">7.</strong> Repository</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">8.</strong> Storage</a></li><li class="chapter-item expanded "><a href="chapter_8.html"><strong aria-hidden="true">9.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html"><strong aria-hidden="true">10.</strong> Testing</a></li><li class="chapter-item expanded "><a href="chapter_10.html"><strong aria-hidden="true">11.</strong> Apache Kafka</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">2.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">3.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">4.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html" class="active"><strong aria-hidden="true">5.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">6.</strong> Repository</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">7.</strong> Storage</a></li><li class="chapter-item expanded "><a href="chapter_8.html"><strong aria-hidden="true">8.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html"><strong aria-hidden="true">9.</strong> Testing</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -147,26 +147,87 @@
                         <h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
 <p>An application service layer implements the logic and makes business logic calls, or queries, available.
 Here is one of the simplest examples of an entry for a service involving a single context, by building and running an AddTag command.</p>
-<pre><code class="language-FSharp">        member this.AddTag tag =
+<p>Initializing the application service layer means providing the correct &quot;viewers&quot; for the streams (which can be based on the event store, mediated by the cache, or can be based on an event broker listener, as in the RabbitMq provided examples) plus some compound viewers if needed (i.e. to read the state of all instances of an aggregate type) and a &quot;messageSenders&quot; object that can be passed to the command handler to let it send messages to the event broker (if any) in a fire and forget way:</p>
+<pre><code class="language-FSharp">
+    type CourseManager
+        (
+            eventStore: IEventStore&lt;string&gt;,
+            courseViewer: AggregateViewer&lt;Course&gt;,
+            studentViewer: AggregateViewer&lt;Student&gt;,
+            messageSenders: MessageSenders,
+            allStudentsAggregateStatesViewer: unit -&gt; Result&lt;(Definitions.EventId * Student) list, string&gt;
+        )
+
+</code></pre>
+<p>A member of the service to provide the initialization of an aggregate:</p>
+<pre><code class="language-FSharp">        member this.AddStudent (student: Student) =
+            result
+                {
+                    return!
+                        runInit&lt;Student, StudentEvents, string&gt;
+                        eventStore
+                        messageSenders
+                        student
+                }
+</code></pre>
+<p>A member of the service to retrieve a student via its id</p>
+<pre><code class="language-FSharp">
+        member this.GetStudent (id: StudentId)  =
+            result
+                {
+                    let! _, student = studentViewer id.Id
+                    return student
+                }
+</code></pre>
+<p>Note: by using the typed Id, we need to extract the proper Guid Id via the Id property if using the studentViewer.</p>
+<p>An example using two commands related to two streams. The example assume that we prefer that the enrollments are stored in both the Student aggregate and the Course aggregate (i.e. bidirectional references). So we need to run two commands in a single transaction to preserve consistency.:</p>
+<pre><code class="language-fsharp">        member this.EnrollStudentToCourse (studentId: StudentId) (courseId: CourseId) =
+            result
+                {
+                    let addCourseToStudentEnrollments = StudentCommands.Enroll courseId
+                    let addStudentToCourseEnrollments = CourseCommands.EnrollStudent studentId
+                    return!
+                        runTwoAggregateCommands
+                            studentId.Id
+                            courseId.Id
+                            eventStore
+                            messageSenders
+                            addCourseToStudentEnrollments
+                            addStudentToCourseEnrollments
+                }
+</code></pre>
+<p>In the following example, the enrollment is a single object type that register enrollments in a single stream (a more conventional approach):</p>
+<pre><code class="language-fsharp">        member this.CreateEnrollment (studentId: StudentId) (courseId: CourseId) =
             result {
-                let! result =
-                    tag
-                    |&gt; AddTag
-                return result 
+                let! enrollments = this.GetOrCreateEnrollments()
+                do! 
+                    enrollments.Enrollments
+                    |&gt; List.exists (fun e -&gt; e.StudentId = studentId &amp;&amp; e.CourseId = courseId)
+                    |&gt; not
+                    |&gt; Result.ofBool &quot;Student is already enrolled in this course.&quot;
+
+                let enrollmentItem = 
+                    { CourseId = courseId
+                      StudentId = studentId
+                      EnrollmentDate = DateTime.UtcNow }
+                    
+                let studentDetailsKey =  DetailsCacheKey (typeof&lt;RefreshableStudentDetails&gt;, studentId.Id)
+                let _ =
+                    DetailsCache.Instance.UpdateMultipleAggregateIdAssociationRef [|courseId.Id|] studentDetailsKey ((TimeSpan.FromMinutes 10.0) |&gt; Some)
+                    
+                let command = EnrollmentCommands.AddEnrollment enrollmentItem
+                let! result = 
+                    runAggregateCommand&lt;Enrollments, EnrollmentEvents, string&gt;
+                        enrollmentId.Id
+                        eventStore
+                        messageSenders
+                        command
+                return result
             }
+
 </code></pre>
-<p>The service layer sends commands to the Command Handler so that this one can run it producing and storing the related events, returning the EventStore Ids of the stored events.</p>
-<h2 id="running-two-commands-to-different-clusters"><a class="header" href="#running-two-commands-to-different-clusters">Running two commands to different clusters</a></h2>
-<p>This code removes the tag with any reference to it. It builds two commands and makes the repository process them at the same time.
-This code removes a tag and any reference to it.</p>
-<pre><code class="language-FSharp">    member this.removeTag id =
-        ResultCE.result {
-            let removeTag = TagCommand.RemoveTag id
-            let removeTagRef = TodoCommand.RemoveTagRef id
-            return! runTwoCommands&lt;Tag, Todo, TagEvent, TodoEvent&gt; eventStore eventBroker removeTag removeTagRef
-        }
-</code></pre>
-<p>Source: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/App.fs">App.fs</a></p>
+<p>Note: the examples show the complexity of handling cache of the details. This aspect wil be covered up and hopefully simplified in future version of this documentation. Just note that any existing RefreshableStudentDetails object need to be notified that a new enrollment is created so that it can refresh its state when needed.</p>
+<p>The quoted code is related to example 15.</p>
 
                     </main>
 
