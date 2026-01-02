@@ -30,6 +30,10 @@ The _Process_ member of the event is implemented by calling the related clusters
 
 ```
 
+
+Note: by overloading the members of an aggregates may make the association between events and members less clear as there is no valid way to express members overloding in the event types directly (would be an invalid DU).
+A workaround would be easy (create a specific DU for the parameters to express the overloading for example)
+
 Source code:  [Events.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Todos/Events.fs)
 
 

@@ -1,7 +1,8 @@
 # Context
 
-I am representing in this example the Todo entity and a Todo context
+_This content is deprecated_:
 
+I am representing in this example the Todo entity and a Todo context
 This is the Todo entity definition:
 
 ```FSharp

@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Events</title>
+        <title>Aggregates</title>
 
 
         <!-- Custom HTML head -->
@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_1.html"><strong aria-hidden="true">2.</strong> Entities</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">3.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html" class="active"><strong aria-hidden="true">4.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">5.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">6.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">7.</strong> Repository</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">8.</strong> Storage</a></li><li class="chapter-item expanded "><a href="chapter_8.html"><strong aria-hidden="true">9.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html"><strong aria-hidden="true">10.</strong> Testing</a></li><li class="chapter-item expanded "><a href="chapter_10.html"><strong aria-hidden="true">11.</strong> Apache Kafka</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_1.html"><strong aria-hidden="true">2.</strong> Entities</a></li><li class="chapter-item expanded "><a href="chapter_2.html" class="active"><strong aria-hidden="true">3.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">4.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">5.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">6.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">7.</strong> Repository</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">8.</strong> Storage</a></li><li class="chapter-item expanded "><a href="chapter_8.html"><strong aria-hidden="true">9.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html"><strong aria-hidden="true">10.</strong> Testing</a></li><li class="chapter-item expanded "><a href="chapter_10.html"><strong aria-hidden="true">11.</strong> Apache Kafka</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -144,42 +144,77 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="events"><a class="header" href="#events">Events</a></h1>
-<p>It is easy to represent events by discriminated unions (DU) with cases associated with transformation members.
-We need to implement the Event interface and so the Process member.</p>
-<p>When we process an event it returns a new state or an error: </p>
-<pre><code class="language-FSharp">    type Event&lt;'A&gt; =
-        abstract member Process: 'A -&gt; Result&lt;'A, string&gt;
+                        <h1 id="contexts"><a class="header" href="#contexts">Contexts</a></h1>
+<p>A context is a class meant to be event-sourced, i.e., associated with a stream of events.
+To build the state of a context using stored events, we use the <em>evolve</em> function.</p>
+<p><em>events</em> are associated with members of the cluster that end up in Update/Delete/Remove of some entity</p>
+<p>Static members that are mandatory for any cluster of entities are:</p>
+<ul>
+<li>
+<p><strong>Zero</strong>: the initial state (no events yet).</p>
+</li>
+<li>
+<p><strong>StorageName</strong> and  <strong>Version</strong>: this combination uniquely identifies the cluster and lets the storage know in which stream to store events and snapshots. Whatever will be the storage (memory, Postgres, EventstoreDb, etc.) the cluster will be stored in a stream named as the concatenation of the <em>StorageName</em> and the <em>Version</em> (i.e. &quot;_todo_01&quot;)</p>
+</li>
+<li>
+<p><strong>SnapshotsInterval</strong>: the number of events that can be stored after a snapshot before creating a new snapshot (i.e. the number of events between snapshots).</p>
+</li>
+</ul>
+<p>The Command handler, by the runCommand function, applies a command, then stores the related events and returns the EventStore (database) IDs of those stored events and the KafkaDeliveryResult (if Kafka broker is enabled).</p>
+<p>Example of a cluster of entities handling the todos and the categories:</p>
+<pre><code class="language-FSharp">    type Todos =
+        {
+            todos: Todos
+            categories: Categories
+        }
+        static member Zero =
+            {
+                todos = Todos.Zero
+                categories = Categories.Zero
+            }
+        static member StorageName =
+            &quot;_todo&quot;
+        static member Version =
+            &quot;_01&quot;
+        static member SnapshotsInterval =
+            15
+        static member Deserialize (s: string) =
+            jsonSerializer.Deserialize&lt;Todos&gt; s
+        member Serialize = 
+            this
+            |&gt; jsonSerializer.Serialize
 </code></pre>
-<p>The <em>'A</em> is the generic context or aggregate type, the event is associated with.</p>
-<p>This is an example of a concrete implementation of an event related to the TodoCluster members <em>Add</em> and <em>Remove</em>.</p>
-<p>So, for example, the <em>TodoAdded</em> event is associated with the <em>AddTodo</em> member.
-The <em>Process</em> member of the event is implemented by calling the related clusters member.</p>
-<pre><code class="language-Fsharp">    type TodoEvent =
-        | TodoAdded of Todo
-        | TodoRemoved of Guid
-            interface Event&lt;Todo&gt; with
-                member this.Process (x: TodosContext ) =
-                    match this with
-                    | TodoAdded (t: Todo) -&gt; 
-                        x.AddTodo t
-                    | TodoRemoved (g: Guid) -&gt; 
-                        x.RemoveTodo g
+<p>In the following example, the TodosContext can check the validity of the categories referenced by any todo before adding it (to preserve the invariant rule that you can add only a todo with a valid category ID reference).
+It uses the &quot;result&quot; computational expression included in the FsToolkit.ErrorHandling library which supports the <a href="https://fsharpforfunandprofit.com/rop/"><em>railway-oriented programming</em></a> pattern of handling errors.</p>
+<p>Example:</p>
+<pre><code class="language-FSharp">    member this.AddTodo (t: Todo) =
+        let checkCategoryExists (c: Guid ) =
+            this.categories.GetCategories() 
+            |&gt; List.exists (fun x -&gt; x.Id = c) 
+            |&gt; boolToResult (sprintf &quot;A category with id '%A' does not exist&quot; c)
 
+        result
+            {
+                let! categoriesMustExist = t.CategoryIds |&gt; catchErrors checkCategoryExists
+                let! todos = this.todos.AddTodo t
+                return 
+                    {
+                        this with
+                            todos = todos
+                    }
+            }
 </code></pre>
-<p>Note: by overloading the members of an aggregates may make the association between events and members less clear as there is no valid way to express members overloding in the event types directly (would be an invalid DU).
-A workaround would be easy (create a specific DU for the parameters to express the overloading for example)</p>
-<p>Source code:  <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Todos/Events.fs">Events.fs</a></p>
+<p>Todo: <a href="https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Todos/Context.fs">Context.fs</a></p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="chapter_2.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="chapter_1.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next" href="chapter_4.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="chapter_3.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -189,11 +224,11 @@ A workaround would be easy (create a specific DU for the parameters to express t
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="chapter_2.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="chapter_1.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next" href="chapter_4.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="chapter_3.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

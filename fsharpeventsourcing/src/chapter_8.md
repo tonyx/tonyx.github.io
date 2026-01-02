@@ -1,4 +1,4 @@
-# Refactoring Aggregates
+# Refactoring Aggregates via upcasting
 
 If you need to change an aggregate (or context) for new requirements, you need to refactor the aggregate so that it can handle the old and the new formats.
 
