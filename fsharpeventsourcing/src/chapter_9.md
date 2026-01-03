@@ -8,7 +8,7 @@ An extension of Expecto provide a "multipleTestCase` function that makes the tes
 
 A particular case of using the _multipleTestCase_ is to run the same test case with different event store implementations (i.e. inmemory, Postgres json, Postgres binary eventually in conjuction with Rabbitmq).
 
-A particular parameter needed to test by using RabbitMQ as event broker is to run the tests in sequence with some delay to allow the propagation of the messages between the different consumers. The delay parameter will so depend on which configuration is under test.
+A particular parameter needed to test by using RabbitMQ as event broker is to run the tests in sequence with some delay to allow the propagation of the messages between the any consumers. The delay parameter will so depend on which configuration is under test.
 
 An example of setting "instances" (which should mean 'parameters') to feed the test cases is the following:
 
@@ -28,7 +28,7 @@ That configuration use two (or three if Rabbitmq is defined) different event sto
 
 In the examples we see that there exist "viewers" based on the event store and based on Rabbitmq consumers.
 
-Any "viewer" based on the eventStore (which uses also the cache in between) has the following signature:
+As already mentioned in a previous chapter, any "viewer" based on the eventStore (which uses also the cache in between) has the following signature:
 
 ```FSharp
     type AggregateViewer<'A> = AggregateId -> Result<EventId * 'A,string>
@@ -57,6 +57,7 @@ in the command handler:
 ```
 Note: a critical point is that given that the cache layer is type agnostic, some cast/boxing is needed to return the proper type of the aggregate. It seems that this use is safe enough as long as the following constraints is satisfied:
 whenever an aggregate of type 'A is stored in the event store, it is retrieved as type 'A as well. This aspect should be invisible to the application using the library but, still, it worth mentioning it.
+
 Also note that the box/unboxing operations may have a performance impact, but that is overcomed by the empirical evidence of the improvement given by the cache layer.
 
 A viewer based on Rabbitmq deserves a different chapter. However the provided examples are based on using some blueprint to facilitate handling the aggregate states of a certains stream as a ConcurrentDictionary:

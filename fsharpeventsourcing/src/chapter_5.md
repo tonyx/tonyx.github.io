@@ -63,6 +63,9 @@ An example using two commands related to two streams. The example assume that we
                 }
 ```        
 
+Note: the _abuse_ of bidirectional references and so multiple streams transactions will be gradually reduced. The benefit of bidirectional references is that it is easier to query the state of an aggregate without needing to scan multiple streams. 
+By adopting details view (and caches for details views) it is possible to avoid most of the bidirectional references.
+
 In the following example, the enrollment is a single object type that register enrollments in a single stream (a more conventional approach):
 ```fsharp
         member this.CreateEnrollment (studentId: StudentId) (courseId: CourseId) =

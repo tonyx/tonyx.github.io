@@ -1,15 +1,12 @@
 # Events
 
-It is easy to represent events by discriminated unions (DU) with cases associated with transformation members.
-We need to implement the Event interface and so the Process member.
+An event is an object that, when processed against a specific state of an aggregate or a context, returns a new state or an error:
 
-When we process an event it returns a new state or an error: 
 
 ```FSharp
     type Event<'A> =
         abstract member Process: 'A -> Result<'A, string>
 ```
-The _'A_ is the generic context or aggregate type, the event is associated with.
 
 This is an example of a concrete implementation of an event related to the TodoCluster members _Add_ and _Remove_.
 
@@ -30,8 +27,9 @@ The _Process_ member of the event is implemented by calling the related clusters
 
 ```
 
-
-Note: by overloading the members of an aggregates may make the association between events and members less clear as there is no valid way to express members overloding in the event types directly (would be an invalid DU).
+We may notice that there is a direct association between events and members of the aggregate or context.
+This may arise a concern when we want to overload members of an aggregate or context (i.e., having multiple members with the same name but different parameters).
+By overloading the members of an aggregates may make the association between events and members less clear as there is no valid way to express members overloding in the event types directly (would be an invalid DU).
 A workaround would be easy (create a specific DU for the parameters to express the overloading for example)
 
 Source code:  [Events.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Todos/Events.fs)

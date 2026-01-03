@@ -1,10 +1,14 @@
 # Contexts
-=_This content is deprecated_: instead of contexts use aggregates (see sample applications 2 and 3).
+_Contexts_ are deprecated:  instead of contexts use aggregates with a constant Id.
+Note: the reasons to "deprecated" context is that it would be easier to use a constant Id aggregate instead of a context, so that any improvement and optimization or new feature can be applied only to aggregates.
 
-A context is a class meant to be event-sourced, i.e., associated with a stream of events.
+A _context_ is a class meant to be event-sourced, i.e., associated with a stream of events that has no specific Id, and therefore a single instance of it is assumed to exist.
+
+An _aggregate_ is a class meant to be event-sourced, but associated with a specific Id, therefore multiple instances of it can exist (one per Id).
+
 To build the state of a context using stored events, we use the _evolve_ function.
 
- _events_ are associated with members of the cluster that end up in Update/Delete/Remove of some entity
+ _Events_ are associated with members of the cluster that end up in Update/Delete/Remove of some entity
 
 Static members that are mandatory for any cluster of entities are:
 - __Zero__: the initial state (no events yet).
