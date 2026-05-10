@@ -1,37 +1,19 @@
-# Events
+# Events and Commands
 
-An event is an object that, when processed against a specific state of an aggregate or a context, returns a new state or an error:
+The heartbeat of Sharpino relies on two fundamental concepts: **Commands** (the intent to change state) and **Events** (the immutable record of that change).
 
+## Events
 
-```FSharp
-    type Event<'A> =
-        abstract member Process: 'A -> Result<'A, string>
-```
+Events represent facts that have already occurred. Because they form the historical ledger of the system, they must be immutable and safely serializable. When an Aggregate processes a Command, it yields a list of Events. These events are appended to the Event Store and then processed to derive the Aggregate's new state.
 
-This is an example of a concrete implementation of an event related to the TodoCluster members _Add_ and _Remove_.
+## Commands
 
-So, for example, the _TodoAdded_ event is associated with the _AddTodo_ member.
-The _Process_ member of the event is implemented by calling the related clusters member.
+Commands are functions that encapsulate business intent. They receive the current state of an Aggregate, along with any necessary parameters, validate the business rules, and return a `Result`. If successful, the Result contains the Events to be committed. Note that for aggregates we need to use `AggregateCommand` from Sharpino.Core instead of `Command`.
 
-```Fsharp
-    type TodoEvent =
-        | TodoAdded of Todo
-        | TodoRemoved of Guid
-            interface Event<Todo> with
-                member this.Process (x: TodosContext ) =
-                    match this with
-                    | TodoAdded (t: Todo) -> 
-                        x.AddTodo t
-                    | TodoRemoved (g: Guid) -> 
-                        x.RemoveTodo g
+### The De-emphasis of the "Undoer"
 
-```
+Previously, Sharpino supported an "Undoer" mechanism for Commands—an automatic way to generate reverse actions to rollback a command. 
 
-We may notice that there is a direct association between events and members of the aggregate or context.
-This may arise a concern when we want to overload members of an aggregate or context (i.e., having multiple members with the same name but different parameters).
-By overloading the members of an aggregates may make the association between events and members less clear as there is no valid way to express members overloding in the event types directly (would be an invalid DU).
-A workaround would be easy (create a specific DU for the parameters to express the overloading for example)
+In modern implementations, the use of the "Undoer" is heavily de-emphasized. In practice, it is almost always set to `None`. 
 
-Source code:  [Events.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Todos/Events.fs)
-
-
+Relying on generic "undo" logic often breaks domain semantics. Instead, compensating actions or state reversions should be modeled explicitly as their own domain Commands (e.g., instead of undoing a `PayOrder` command, issue an explicit `RefundOrder` command). This keeps the domain model clear, explicit, and intention-revealing.

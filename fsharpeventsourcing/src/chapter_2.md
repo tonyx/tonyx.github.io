@@ -1,71 +1,19 @@
-# Contexts
-_Contexts_ are deprecated:  instead of contexts use aggregates with a constant Id.
-Note: the reasons to "deprecated" context is that it would be easier to use a constant Id aggregate instead of a context, so that any improvement and optimization or new feature can be applied only to aggregates.
+# The Domain Model & Pure Aggregates
 
-A _context_ is a class meant to be event-sourced, i.e., associated with a stream of events that has no specific Id, and therefore a single instance of it is assumed to exist.
+In event-sourced systems, the **Aggregate** is the primary boundary of consistency. It receives commands, applies business rules, and emits events.
 
-An _aggregate_ is a class meant to be event-sourced, but associated with a specific Id, therefore multiple instances of it can exist (one per Id).
+## Ditching "Contexts"
 
-To build the state of a context using stored events, we use the _evolve_ function.
+In earlier versions of Sharpino, there was a concept known as a "Context" — essentially an event-sourced object that did not have a specific ID, assuming a single global instance.
 
- _Events_ are associated with members of the cluster that end up in Update/Delete/Remove of some entity
+**Contexts are now deprecated.** 
 
-Static members that are mandatory for any cluster of entities are:
-- __Zero__: the initial state (no events yet).
-- __StorageName__ and  __Version__: this combination uniquely identifies the cluster and lets the storage know in which stream to store events and snapshots. Whatever will be the storage (memory, Postgres, EventstoreDb, etc.) the cluster will be stored in a stream named as the concatenation of the _StorageName_ and the _Version_ (i.e. "_todo_01")
+To streamline the architecture, Sharpino now advocates using **Pure Aggregates** for everything. Every event-sourced entity must have a proper `Id`. 
 
-- __SnapshotsInterval__: the number of events that can be stored after a snapshot before creating a new snapshot (i.e. the number of events between snapshots).
+If your domain requires a "singleton" or single-instance object (like a global configuration or a master catalog), you achieve this by simply using an Aggregate with a *constant Id*. You then ensure at application startup that the instance exists (creating it automatically if it doesn't). This allows all optimizations, caching, and features to be developed exclusively for Aggregates without needing to support a separate "Context" construct.
 
+## Combating Primitive Obsession
 
-The Command handler, by the runCommand function, applies a command, then stores the related events and returns the EventStore (database) IDs of those stored events and the KafkaDeliveryResult (if Kafka broker is enabled).
+Aggregates require an ID, often represented by a standard `Guid`. However, relying heavily on raw Guids leads to "Primitive Obsession," where the compiler cannot distinguish between a `Book` Guid and an `Author` Guid.
 
-Example of a cluster of entities handling the todos and the categories:
-```FSharp
-    type Todos =
-        {
-            todos: Todos
-            categories: Categories
-        }
-        static member Zero =
-            {
-                todos = Todos.Zero
-                categories = Categories.Zero
-            }
-        static member StorageName =
-            "_todo"
-        static member Version =
-            "_01"
-        static member SnapshotsInterval =
-            15
-        static member Deserialize (s: string) =
-            jsonSerializer.Deserialize<Todos> s
-        member Serialize = 
-            this
-            |> jsonSerializer.Serialize
-```
-
-In the following example, the TodosContext can check the validity of the categories referenced by any todo before adding it (to preserve the invariant rule that you can add only a todo with a valid category ID reference).
-It uses the "result" computational expression included in the FsToolkit.ErrorHandling library which supports the [_railway-oriented programming_](https://fsharpforfunandprofit.com/rop/) pattern of handling errors.
-
-
-Example:
-```FSharp
-    member this.AddTodo (t: Todo) =
-        let checkCategoryExists (c: Guid ) =
-            this.categories.GetCategories() 
-            |> List.exists (fun x -> x.Id = c) 
-            |> boolToResult (sprintf "A category with id '%A' does not exist" c)
-
-        result
-            {
-                let! categoriesMustExist = t.CategoryIds |> catchErrors checkCategoryExists
-                let! todos = this.todos.AddTodo t
-                return 
-                    {
-                        this with
-                            todos = todos
-                    }
-            }
-```
-
-Todo: [Context.fs](https://github.com/tonyx/Sharpino/blob/main/Sharpino.Sample/Domain/Todos/Context.fs)
+Taking inspiration from the `blazorBookLibrary`, Sharpino encourages defining specific domain-relevant Value Objects for IDs. By wrapping the Guid in a strongly typed construct (e.g., `BookId`, `AuthorId`), you leverage the F# type system to guarantee compile-time safety and prevent accidental cross-pollination of identifiers across different aggregate types.
