@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Application Layer</title>
+        <title>Advanced Caching Architecture</title>
 
 
         <!-- Custom HTML head -->
@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">2.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">3.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">4.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html" class="active"><strong aria-hidden="true">5.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">6.</strong> Command Handler</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">7.</strong> Event Store</a></li><li class="chapter-item expanded "><a href="chapter_8.html"><strong aria-hidden="true">8.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html"><strong aria-hidden="true">9.</strong> Testing</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">2.</strong> The Domain Model & Pure Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">3.</strong> Events and Commands</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">4.</strong> In-Memory Projections and Detail Views</a></li><li class="chapter-item expanded "><a href="chapter_5.html" class="active"><strong aria-hidden="true">5.</strong> Advanced Caching Architecture</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">6.</strong> The Storage & State Layer (Async First)</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">7.</strong> Application Layer & Frontend Integration</a></li><li class="chapter-item expanded "><a href="chapter_8.html"><strong aria-hidden="true">8.</strong> Security, Privacy, and GDPR</a></li><li class="chapter-item expanded "><a href="chapter_9.html"><strong aria-hidden="true">9.</strong> Refactoring and Testing</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -144,92 +144,40 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="application-service-layer"><a class="header" href="#application-service-layer">Application service layer</a></h1>
-<p>An application service layer implements the logic and makes business logic calls, or queries, available.
-Here is one of the simplest examples of an entry for a service involving a single context, by building and running an AddTag command.</p>
-<p>Initializing the application service layer means providing the correct &quot;viewers&quot; for the streams (which can be based on the event store, mediated by the cache, or can be based on an event broker listener, as in the RabbitMq provided examples) plus some compound viewers if needed (i.e. to read the state of all instances of an aggregate type) and a &quot;messageSenders&quot; object that can be passed to the command handler to let it send messages to the event broker (if any) in a fire and forget way:</p>
-<pre><code class="language-FSharp">
-    type CourseManager
-        (
-            eventStore: IEventStore&lt;string&gt;,
-            courseViewer: AggregateViewer&lt;Course&gt;,
-            studentViewer: AggregateViewer&lt;Student&gt;,
-            messageSenders: MessageSenders,
-            allStudentsAggregateStatesViewer: unit -&gt; Result&lt;(Definitions.EventId * Student) list, string&gt;
-        )
+                        <h1 id="advanced-caching-architecture"><a class="header" href="#advanced-caching-architecture">Advanced Caching Architecture</a></h1>
+<p>Reconstituting an aggregate state from a long stream of events can be costly if done for every command or read request. Sharpino implements an advanced, multi-tiered caching architecture to handle this, ensuring both blazing-fast reads and strict consistency across distributed nodes.</p>
+<h2 id="the-refreshable-details-cache"><a class="header" href="#the-refreshable-details-cache">The Refreshable Details Cache</a></h2>
+<p>Detail views are implemented using a <code>Refreshable&lt;'A&gt;</code> or <code>RefreshableAsync&lt;'A&gt;</code> interface. Because they depend on Aggregate states, Sharpino tracks these dependencies. The Detail Cache received a massive boost by utilizing async, task-based refreshable details. </p>
+<p>When an Aggregate produces a new event, the system immediately and asynchronously triggers a refresh (<code>RefreshDependentDetails</code>) on all Details that depend on that specific Aggregate ID. This ensures the high-performance read models never drift from the Event Store.</p>
+<h2 id="l1-l2-and-the-message-backplane"><a class="header" href="#l1-l2-and-the-message-backplane">L1, L2, and the Message Backplane</a></h2>
+<p>To support horizontal scaling, Sharpino instruments its cache layers with an <strong>L2 Cache</strong> and a <strong>Message Backplane</strong>.</p>
+<ul>
+<li><strong>L1 Cache (In-Memory)</strong>: A localized, ultra-fast cache holding reconstructed Aggregates and active Detail closures.</li>
+<li><strong>L2 Cache (SQL/Azure SQL)</strong>: A distributed cache layer that shares easily serialized data across nodes. </li>
+<li><strong>Message Backplane</strong>: To prevent nodes from serving stale L1 data, Sharpino uses a backplane (Azure Service Bus or MQTT). When Node A updates an aggregate, it broadcasts an invalidation message over the backplane. Node B receives this, instantly invalidates its stale L1 cache, and automatically triggers its local <code>RefreshDependentDetails</code> process.</li>
+</ul>
+<h3 id="synchronization-flow"><a class="header" href="#synchronization-flow">Synchronization Flow</a></h3>
+<pre><code class="language-mermaid">graph TD
+    subgraph Node_A_Writer
+        A_App[App Command] --&gt; A_AC[AggregateCache3]
+        A_AC --&gt; A_EventStore[Database / EventStore]
+        A_AC -. &quot;1. Update Local&quot; .-&gt; A_L1[L1 Cache]
+        A_AC -- &quot;2. Publish Message&quot; --&gt; ASB((Azure Service Bus / MQTT&lt;br/&gt;Backplane))
+    end
 
-</code></pre>
-<p>A member of the service to provide the initialization of an aggregate:</p>
-<pre><code class="language-FSharp">        member this.AddStudent (student: Student) =
-            result
-                {
-                    return!
-                        runInit&lt;Student, StudentEvents, string&gt;
-                        eventStore
-                        messageSenders
-                        student
-                }
-</code></pre>
-<p>A member of the service to retrieve a student via its id</p>
-<pre><code class="language-FSharp">
-        member this.GetStudent (id: StudentId)  =
-            result
-                {
-                    let! _, student = studentViewer id.Id
-                    return student
-                }
-</code></pre>
-<p>Note: by using the typed Id, we need to extract the proper Guid Id via the Id property if using the studentViewer.</p>
-<p>An example using two commands related to two streams. The example assume that we prefer that the enrollments are stored in both the Student aggregate and the Course aggregate (i.e. bidirectional references). So we need to run two commands in a single transaction to preserve consistency.:</p>
-<pre><code class="language-fsharp">        member this.EnrollStudentToCourse (studentId: StudentId) (courseId: CourseId) =
-            result
-                {
-                    let addCourseToStudentEnrollments = StudentCommands.Enroll courseId
-                    let addStudentToCourseEnrollments = CourseCommands.EnrollStudent studentId
-                    return!
-                        runTwoAggregateCommands
-                            studentId.Id
-                            courseId.Id
-                            eventStore
-                            messageSenders
-                            addCourseToStudentEnrollments
-                            addStudentToCourseEnrollments
-                }
-</code></pre>
-<p>Note: the <em>abuse</em> of bidirectional references and so multiple streams transactions will be gradually reduced. The benefit of bidirectional references is that it is easier to query the state of an aggregate without needing to scan multiple streams. 
-By adopting details view (and caches for details views) it is possible to avoid most of the bidirectional references.</p>
-<p>In the following example, the enrollment is a single object type that register enrollments in a single stream (a more conventional approach):</p>
-<pre><code class="language-fsharp">        member this.CreateEnrollment (studentId: StudentId) (courseId: CourseId) =
-            result {
-                let! enrollments = this.GetOrCreateEnrollments()
-                do! 
-                    enrollments.Enrollments
-                    |&gt; List.exists (fun e -&gt; e.StudentId = studentId &amp;&amp; e.CourseId = courseId)
-                    |&gt; not
-                    |&gt; Result.ofBool &quot;Student is already enrolled in this course.&quot;
+    subgraph Node_B_Reader
+        ASB -- &quot;3. Receive Message&quot; --&gt; B_AC[AggregateCache3]
+        B_AC -. &quot;4. Invalidate/Remove&quot; .-&gt; B_L1_Agg[Aggregate L1 Cache]
+        B_AC -- &quot;5. Trigger Refresh&quot; --&gt; B_DC[DetailsCache]
+        B_DC -. &quot;6. Recompute View&quot; .-&gt; B_L1_Det[statesDetails L1 Cache]
+    end
 
-                let enrollmentItem = 
-                    { CourseId = courseId
-                      StudentId = studentId
-                      EnrollmentDate = DateTime.UtcNow }
-                    
-                let studentDetailsKey =  DetailsCacheKey (typeof&lt;RefreshableStudentDetails&gt;, studentId.Id)
-                let _ =
-                    DetailsCache.Instance.UpdateMultipleAggregateIdAssociationRef [|courseId.Id|] studentDetailsKey ((TimeSpan.FromMinutes 10.0) |&gt; Some)
-                    
-                let command = EnrollmentCommands.AddEnrollment enrollmentItem
-                let! result = 
-                    runAggregateCommand&lt;Enrollments, EnrollmentEvents, string&gt;
-                        enrollmentId.Id
-                        eventStore
-                        messageSenders
-                        command
-                return result
-            }
-
+    subgraph External
+        L2[(Azure SQL L2 Cache)]
+        A_AC -. &quot;Optional Sync&quot; .-&gt; L2
+        B_AC -. &quot;Optional Request&quot; .-&gt; L2
+    end
 </code></pre>
-<p>Note: the examples show the complexity of handling cache of the details. This aspect wil be covered up and hopefully simplified in future version of this documentation. Just note that any existing RefreshableStudentDetails object need to be notified that a new enrollment is created so that it can refresh its state when needed.</p>
-<p>The quoted code is related to example 15.</p>
 
                     </main>
 

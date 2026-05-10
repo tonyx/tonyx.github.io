@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Refactoring</title>
+        <title>Security, Privacy, and GDPR</title>
 
 
         <!-- Custom HTML head -->
@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">2.</strong> Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">3.</strong> Events</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">4.</strong> Commands</a></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">5.</strong> Application Layer</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">6.</strong> Command Handler</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">7.</strong> Event Store</a></li><li class="chapter-item expanded "><a href="chapter_8.html" class="active"><strong aria-hidden="true">8.</strong> Refactoring</a></li><li class="chapter-item expanded "><a href="chapter_9.html"><strong aria-hidden="true">9.</strong> Testing</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">2.</strong> The Domain Model & Pure Aggregates</a></li><li class="chapter-item expanded "><a href="chapter_3.html"><strong aria-hidden="true">3.</strong> Events and Commands</a></li><li class="chapter-item expanded "><a href="chapter_4.html"><strong aria-hidden="true">4.</strong> In-Memory Projections and Detail Views</a></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">5.</strong> Advanced Caching Architecture</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">6.</strong> The Storage & State Layer (Async First)</a></li><li class="chapter-item expanded "><a href="chapter_7.html"><strong aria-hidden="true">7.</strong> Application Layer & Frontend Integration</a></li><li class="chapter-item expanded "><a href="chapter_8.html" class="active"><strong aria-hidden="true">8.</strong> Security, Privacy, and GDPR</a></li><li class="chapter-item expanded "><a href="chapter_9.html"><strong aria-hidden="true">9.</strong> Refactoring and Testing</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -144,83 +144,16 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="refactoring-aggregates-via-upcasting"><a class="header" href="#refactoring-aggregates-via-upcasting">Refactoring Aggregates via upcasting</a></h1>
-<p>If you need to change an aggregate (or context) for new requirements, you need to slightly change the definition of the aggregate, for instance by adding a new field, and at the same time you want to be able to handle the old and the new formats.</p>
-<p>An upcasting technique is based on being able to create an aggregate that mimics the old one and an upcast function to convert from the old one to the new one.</p>
-<p>It is convenient to do a bulk upcast of all the existing aggregate instances by making a snapshot of all of them to be able to drop the old aggregate definition from the code.
-The new snapshots will use the new aggregate format, so the definition of the old aggregate will be unnecessary after the bulk upcast and resnapshot.</p>
-<p>To do an upcast, you can create a shadow aggregate that mimics the old one in the same module of the current one, provided that the module is defined as rec (recursive).</p>
-<p>The mechanism is based on handling the failure of the Deserialization by using as fallback the Deserialization using the old aggregate and then the upcast function to the new one.</p>
-<p>Note: it may depend on the serialization library and its configuration as it is not always true that you can deserialize the old aggregate changing its target type with a different name than the original one. </p>
-<p>The provided examples are all using FSPickler configured in a way that it allows the upcast from the old aggregate with a different name to the new one.</p>
-<p>Quick example of an upcast from an old aggregate to a new one:</p>
-<p>The current version of the Course aggregate is:</p>
-<pre><code class="language-fsharp">type Curse =
-    {
-        Id: Guid
-        Name: string
-        Students: List&lt;Guid&gt;
-        MaxNumberOfStudents: int
-    }
-</code></pre>
-<p>We want to add a new field <em>Teachers</em> to the aggregate so it will become:</p>
-<pre><code class="language-fsharp">type Course =
-    {
-        Id: Guid
-        Name: string
-        Students: List&lt;Guid&gt;
-        MaxNumberOfStudents: int
-        Teachers: List&lt;Guid&gt;
-    }
-</code></pre>
-<p>We want to be able to read the old version of the aggregate and upcast it to the new one. So we redefine a type <em>Course001</em> that mimics the old version of the aggregate:</p>
-<pre><code class="language-fsharp">type Course001 =
-    {
-        Id: Guid
-        Name: string
-        Students: List&lt;Guid&gt;
-        MaxNumberOfStudents: int
-    }
-</code></pre>
-<p>We instrument the course001 with deserialization and upcast function</p>
-<pre><code class="language-fsharp">type Course001 =
-    {
-        Id: Guid
-        Name: string
-        Students: List&lt;Guid&gt;
-        MaxNumberOfStudents: int
-        Teachers: List&lt;Guid&gt;
-    }
-
-    with
-        static member Deserialize x =
-            jsonPSerializer.Deserialize&lt;Curse001&gt; x
-        member this.Upcast(): Course =
-            {   Name = this.Name
-                Id = this.Id
-                Students = this.Students
-                MaxNumberOfStudents = this.MaxNumberOfStudents
-                Teachers = []
-            }
-</code></pre>
-<p>Finally we make sure that the current deserialize function of the Course aggregate can handle both the old and the new format:</p>
-<pre><code class="language-fsharp">    static member Deserialize(x: string): Result&lt;Course, string&gt; =
-        let firstTry = jsonPSerializer.Deserialize&lt;Course&gt; x
-        match firstTry with
-        | Ok x -&gt; x |&gt; Ok
-        | Error e -&gt;
-            let secondTry = jsonPSerializer.Deserialize&lt;Curse001&gt; x
-            match secondTry with
-            | Ok x -&gt; x.Upcast() |&gt; Ok
-            | Error e1 -&gt;
-                Error (e + &quot; &quot; + e1)
-</code></pre>
-<p>Examples using FSharp.SystemTextJson are also privided. 
-It's important to test any serialization technique to make sure that the &quot;mimic old type&quot; deserialization and upcast works as in this example.</p>
-<h2 id="upcasting-events"><a class="header" href="#upcasting-events">Upcasting events</a></h2>
-<p>There is no need to upcast events or there is a risk trying to do so. A safe approach is by simply adding new events for the new features of the aggregate, without changing the old event definitions.</p>
-<p>An importan thing is that events should not predicate the object itself because in that case is almost sure that the events will not survive the evolution of the aggregate.</p>
-<p>Example. Consider an event called Update which will use an instance of the object itself as parameter. If the object changes then the event will not be able to deserialize anymore.</p>
+                        <h1 id="security-privacy-and-gdpr"><a class="header" href="#security-privacy-and-gdpr">Security, Privacy, and GDPR</a></h1>
+<p>Event Sourcing presents a unique challenge for privacy regulations like GDPR, particularly the &quot;Right to be Forgotten.&quot; Because the Event Store is an immutable ledger, you cannot simply execute a <code>DELETE</code> statement to remove someone's personal data.</p>
+<h2 id="the-golden-rule-of-pii"><a class="header" href="#the-golden-rule-of-pii">The Golden Rule of PII</a></h2>
+<p>The primary recommendation is simple: <strong>Personally Identifiable Information (PII) should not be kept in the Event Store.</strong> </p>
+<p>Whenever possible, keep PII in a separate, mutable store (like standard Identity tables) and only reference non-identifiable GUIDs in your immutable Event Store.</p>
+<h2 id="event-ghosting-and-scrambling"><a class="header" href="#event-ghosting-and-scrambling">Event Ghosting and Scrambling</a></h2>
+<p>In scenarios where sensitive information has inadvertently entered the event stream, Sharpino provides advanced GDPR functions to &quot;ghost&quot; or scramble the eventual private data.</p>
+<p>Because the event stream must remain replayable to reach the current valid state, Sharpino supports replacing specific events with &quot;ghosted&quot; versions. </p>
+<p><strong>The critical requirement for safe replacement:</strong> 
+The replacement event must be chosen so that reprocessing the stream leaves the system behavior completely unaltered. When the existing stored events are applied to a state that is &quot;ghosted&quot;, they must still return an <code>Ok</code> (No error). Likewise, the newly introduced ghosted events must also yield an <code>Ok</code>. This guarantees the integrity of the stream is preserved, the application does not crash during replay, and the sensitive PII is permanently removed from the ledger.</p>
 
                     </main>
 
